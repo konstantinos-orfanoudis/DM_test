@@ -1,0 +1,27 @@
+General 
+	Read ChangeLabel -> JSON BIG
+		
+		
+	
+		For Objects{
+			Create CSV(json) -> csv
+			Create XML(json) -> XML
+			
+			Or just DM XML
+		}
+		For Templates{
+			Create vb.Net files
+			If Overwriting template is in change content then 
+			Filename with suffix -o
+		}
+		
+		For Processes{
+			Process Logic
+		}
+		
+		For Scripts{
+			Scripts Logic
+		
+		}
+	
+	Imxclient.exe run-apiserver -B
