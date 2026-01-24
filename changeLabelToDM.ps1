@@ -3,7 +3,8 @@
   Export ONLY the embedded DbObjects found in Column[@Name='ChangeContent'] to a DM Objects XML file.
 
 .PARAMETER Path
-  Path to the outer XML file (e.g., Transport TagData.xml).
+  Path to the input .zip file (contains TagTransport\*\TagData.xml).
+
 
 .PARAMETER OutXmlPath
   Output XML file path.
@@ -35,6 +36,62 @@ param(
   [switch]$PreviewXml
 )
 
+function Resolve-TagDataXmlFromZip {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ZipPath
+  )
+
+  if (-not (Test-Path -LiteralPath $ZipPath)) {
+    throw "ZIP file not found: $ZipPath"
+  }
+
+  if ([System.IO.Path]::GetExtension($ZipPath) -ne ".zip") {
+    throw "Input -Path must be a .zip file. Got: $ZipPath"
+  }
+
+  $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("TagTransport_" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $tempDir | Out-Null
+
+  try {
+    Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempDir -Force
+
+    $tagTransportDir = Get-ChildItem -LiteralPath $tempDir -Directory -Recurse |
+      Where-Object { $_.Name -eq "TagTransport" } |
+      Select-Object -First 1
+
+    if (-not $tagTransportDir) {
+      throw "Could not find a 'TagTransport' folder inside the zip."
+    }
+
+    $tagDataFiles = Get-ChildItem -LiteralPath $tagTransportDir.FullName -Recurse -File -Filter "TagData.xml"
+
+    if (-not $tagDataFiles -or $tagDataFiles.Count -eq 0) {
+      throw "Could not find TagData.xml under: $($tagTransportDir.FullName)"
+    }
+
+    if ($tagDataFiles.Count -gt 1) {
+      Write-Host "Warning: Multiple TagData.xml files found. Using the first one:" -ForegroundColor Yellow
+      Write-Host "  $($tagDataFiles[0].FullName)" -ForegroundColor Yellow
+    }
+
+    return [pscustomobject]@{
+      TempDir         = $tempDir
+      TagDataXmlPath  = $tagDataFiles[0].FullName
+    }
+  }
+  catch {
+    # if we fail, clean up tempDir before throwing
+    if (Test-Path -LiteralPath $tempDir) {
+      Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    throw
+  }
+}
+
+
 function Remove-InvalidXmlChars {
   param([Parameter(Mandatory)][string]$Text)
   # Strip control chars except TAB/LF/CR
@@ -44,13 +101,9 @@ function Remove-InvalidXmlChars {
 function Try-LoadEmbeddedXml {
   param([Parameter(Mandatory)][string]$EmbeddedText)
 
-  $candidates = @(
-    $EmbeddedText,
-    [System.Net.WebUtility]::HtmlDecode($EmbeddedText)
-  ) | Where-Object { $_ -and $_.Trim() }
+  $t = (Remove-InvalidXmlChars $EmbeddedText).Trim()
 
-  foreach ($cand in $candidates) {
-    $t = (Remove-InvalidXmlChars $cand).Trim()
+  for ($i = 0; $i -lt 3; $i++) {
 
     foreach ($attempt in @($t, "<Root>$t</Root>")) {
       $doc = New-Object System.Xml.XmlDocument
@@ -62,10 +115,14 @@ function Try-LoadEmbeddedXml {
         # try next
       }
     }
+
+    # decode once and try again
+    $t = (Remove-InvalidXmlChars ([System.Net.WebUtility]::HtmlDecode($t))).Trim()
   }
 
   throw "Could not parse embedded XML."
 }
+
 
 
 function Get-ColumnRawValue {
@@ -327,105 +384,91 @@ function Export-DbObjectsToDmObjectsXml_Normal {
 
   return $xmlString
 }
-
 function Get-TemplatesFromChangeContent {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Path)
 
   if (-not (Test-Path -LiteralPath $Path)) { throw "File not found: $Path" }
 
-  # Load outer XML safely
-  $settings = New-Object System.Xml.XmlReaderSettings
-  $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
-  $settings.XmlResolver   = $null
+  # Read whole file + decode a few times (handles &lt; and &amp;lt;)
+  $text = Get-Content -LiteralPath $Path -Raw
+  for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }
 
-  $reader = [System.Xml.XmlReader]::Create($Path, $settings)
-  try {
-    $outerDoc = New-Object System.Xml.XmlDocument
-    $outerDoc.PreserveWhitespace = $false
-    $outerDoc.XmlResolver = $null
-    $outerDoc.Load($reader)
-  } finally { if ($reader) { $reader.Close() } }
-
-  $changeColumns = $outerDoc.SelectNodes("//*[local-name()='Column' and @Name='ChangeContent']")
-  if (-not $changeColumns -or $changeColumns.Count -eq 0) { return @() }
-
-  function Sanitize-FileName([string]$Name) {
+  function Sanitize-FilePart([string]$s) {
+    if ([string]::IsNullOrWhiteSpace($s)) { return "" }
     $invalid = [System.IO.Path]::GetInvalidFileNameChars()
-    foreach ($ch in $invalid) { $Name = $Name.Replace($ch, '_') }
-    $Name = $Name.Trim()
-    if ([string]::IsNullOrWhiteSpace($Name)) { $Name = "Template" }
-    return $Name
+    foreach ($ch in $invalid) { $s = $s.Replace($ch, '_') }
+    return $s.Trim()
   }
 
-  # helper: match Template/Overwrite ops in a doc (outer column OR parsed diff doc)
-  function Get-TemplateNodesFromDoc($docOrNode) {
-    $tplVals = $docOrNode.SelectNodes(".//*[local-name()='Op' and (@Columnname='Template' or @ColumnName='Template')]/*[local-name()='Value']")
-    $owNode  = $docOrNode.SelectSingleNode(".//*[local-name()='Op' and (@Columnname='IsOverwritingTemplate' or @ColumnName='IsOverwritingTemplate')]/*[local-name()='Value']")
-    return @{ TemplateValues = $tplVals; OverwriteNode = $owNode }
-  }
+  $reDbObject = [regex]::new('(?s)<DbObject\b.*?</DbObject>')
+
+  # ObjectKey: <Column Name="ObjectKey"> ... <T>DialogColumn</T><P>EPC-...</P> ...
+  $reObjectKeyTP = [regex]::new(
+    '(?s)<Column\b[^>]*\bName\s*=\s*"ObjectKey"[^>]*>.*?<Value>.*?<T>(.*?)</T>.*?<P>(.*?)</P>.*?</Value>.*?</Column>'
+  )
+
+  $reDiff = [regex]::new('(?s)<Diff\b.*?</Diff>')
+
+  # Template value inside Diff (tolerant, does NOT require </Op>)
+  $reTemplateValue = [regex]::new(
+    "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']Template[""'][^>]*>.*?<Value>(.*?)</Value>"
+  )
+
+  $reOverwriteTrue = [regex]::new(
+    "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']IsOverwritingTemplate[""'][^>]*>.*?<Value>\s*True\s*</Value>"
+  )
 
   $templates = New-Object System.Collections.Generic.List[object]
 
-  foreach ($cc in $changeColumns) {
+  foreach ($dboMatch in $reDbObject.Matches($text)) {
+    $dboText = $dboMatch.Value
 
-    # ---- A) BEST CASE (your file): Diff is already XML under <Value> ----
-    $found = Get-TemplateNodesFromDoc $cc
-    $tplVals = $found.TemplateValues
-    $owNode  = $found.OverwriteNode
+    # Default context
+    $tableName  = "UnknownTable"
+    $columnName = "UnknownColumn"
 
-    # ---- B) FALLBACK: Diff stored as embedded/escaped XML in Display or Value text ----
-    if (-not $tplVals -or $tplVals.Count -eq 0) {
-
-      $rawCandidates = New-Object System.Collections.Generic.List[string]
-
-      $disp = $cc.Attributes["Display"]
-      if ($disp -and -not [string]::IsNullOrWhiteSpace($disp.Value)) { $rawCandidates.Add($disp.Value) }
-
-      $valNode = $cc.SelectSingleNode("./*[local-name()='Value']")
-      if ($valNode) {
-        if (-not [string]::IsNullOrWhiteSpace($valNode.InnerText)) { $rawCandidates.Add($valNode.InnerText) }
-        if (-not [string]::IsNullOrWhiteSpace($valNode.InnerXml))  { $rawCandidates.Add($valNode.InnerXml) }
-      }
-
-      foreach ($raw in $rawCandidates) {
-        try {
-          $diffDoc = Try-LoadEmbeddedXml -EmbeddedText $raw
-        } catch { continue }
-
-        $found2 = Get-TemplateNodesFromDoc $diffDoc
-        $tplVals = $found2.TemplateValues
-        $owNode  = $found2.OverwriteNode
-
-        if ($tplVals -and $tplVals.Count -gt 0) { break }
-      }
+    $mKey = $reObjectKeyTP.Match($dboText)
+    if ($mKey.Success) {
+      $tableName  = $mKey.Groups[1].Value
+      $columnName = $mKey.Groups[2].Value
     }
 
-    if (-not $tplVals -or $tplVals.Count -eq 0) { continue }
+    $tableName  = Sanitize-FilePart $tableName
+    $columnName = Sanitize-FilePart $columnName
+    if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
+    if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
 
-    $isOverwrite = $false
-    if ($owNode -and $owNode.InnerText.Trim().Equals("True",[StringComparison]::OrdinalIgnoreCase)) {
-      $isOverwrite = $true
-    }
+    foreach ($diffMatch in $reDiff.Matches($dboText)) {
+      $diff = $diffMatch.Value
 
-    foreach ($v in $tplVals) {
-      # ✅ VB file content must be the INNER Template Op <Value> text
-      $vbContent = $v.InnerText  # e.g. Value = "Greece"
+      # Only proceed if this Diff contains a Template Op
+      $tm = $reTemplateValue.Matches($diff)
+      if ($tm.Count -eq 0) { continue }
 
-      # file name from first quoted string
-      $fileBase = if ($vbContent -match '"([^"]+)"') { $matches[1] } else { $vbContent }
-      $fileBase = Sanitize-FileName $fileBase
+      $isOverwrite = $reOverwriteTrue.IsMatch($diff)
 
-      $templates.Add([pscustomobject]@{
-        FileName              = $fileBase
-        IsOverwritingTemplate = $isOverwrite
-        Content               = $vbContent
-      })
+      foreach ($m in $tm) {
+        # VB file content = inner Template Op <Value>...</Value>
+        $vbContent = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
+
+        $templates.Add([pscustomobject]@{
+          TableName             = $tableName
+          ColumnName            = $columnName
+          IsOverwritingTemplate = $isOverwrite
+          Content               = $vbContent
+        })
+      }
     }
   }
 
   return $templates
 }
+
+
+
+
+
 
   
 
@@ -465,18 +508,47 @@ function Write-TemplatesAsVbNetFiles {
     New-Item -ItemType Directory -Path $OutDir | Out-Null
   }
 
+  function Sanitize-FilePart([string]$s) {
+    if ([string]::IsNullOrWhiteSpace($s)) { return "" }
+    $invalid = [System.IO.Path]::GetInvalidFileNameChars()
+    foreach ($ch in $invalid) { $s = $s.Replace($ch, [char]0) }
+    $s = $s.Replace('"', '')
+    $s -replace '\s+', ''
+    return $s.Trim()
+  }
+
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
   foreach ($t in $Templates) {
-    $suffix = if ($t.IsOverwritingTemplate) { "-o" } else { "" }
-    $filePath = Join-Path $OutDir ("{0}{1}.vb" -f $t.FileName, $suffix)
 
-    # ✅ writes exactly 'Value = "Greece"' (the Template Op's <Value> text)
+    $columnKey = $t.ColumnName
+    $uri = "http://localhost:8182/SupportPlus/GetTableNameColumnName?UID_DialogColumn=$columnKey"
+
+    $headers = @{
+      "Accept"             = "application/json"
+      "X-Forwarded-For"     = "127.0.0.1"
+      "X-Forwarded-Host"    = "localhost:8182"
+      "X-Forwarded-Proto"   = "http"
+    }
+
+    $res = Invoke-WebRequest -Uri $uri -Method Get -Headers $headers -WebSession $session -ErrorAction Stop
+    $res = $res -replace '"', ''
+
+
+    $suffix = if ($t.IsOverwritingTemplate) { "-o" } else { "" }
+    $fileName = "ColumnTemplate_" + $res + $suffix +".vb"
+
+    $filePath = Join-Path $OutDir $fileName
+    Write-Host $filePath
     [System.IO.File]::WriteAllText($filePath, [string]$t.Content, $utf8NoBom)
 
     Write-Host "Wrote template: $filePath" -ForegroundColor Green
   }
+
+
 }
+
+
 
 
 
@@ -511,75 +583,113 @@ function Filter-DbObjectsByAllowedColumns {
 
 # ---------------- ENTRY POINT ----------------
 # ---------------- ENTRY POINT ----------------
-$dbObjects = Get-AllDbObjectsFromChangeContent -Path $Path -IncludeEmptyValues:$IncludeEmptyValues
 
-if (-not $dbObjects -or $dbObjects.Count -eq 0) {
-  Write-Host "No embedded DbObjects found inside ChangeContent in: $Path" -ForegroundColor Yellow
+$zipPath = $Path
+$resolved = Resolve-TagDataXmlFromZip -ZipPath $zipPath
+
+# overwrite $Path to point to the TagData.xml, so the rest of your script stays unchanged
+$Path = $resolved.TagDataXmlPath
+
+try {
+    $dbObjects = Get-AllDbObjectsFromChangeContent -Path $Path -IncludeEmptyValues:$IncludeEmptyValues
+
+    if (-not $dbObjects -or $dbObjects.Count -eq 0) {
+      Write-Host "No embedded DbObjects found inside ChangeContent in: $Path" -ForegroundColor Yellow
+    }
+    else{
+
+    # --- login session ---
+    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+    $loginUri="http://localhost:8182/imx/login/SupportPlus"
+    $body = @{ Module="DialogUser"; User="viadmin"; Password="Password.123" } | ConvertTo-Json
+    Invoke-WebRequest -Uri $loginUri -Method Post -ContentType "application/json" -Body $body -WebSession $session | Out-Null
+
+    # --- build tables csv (unique) ---
+    $tables = ($dbObjects.tableName | Where-Object { $_ } | Sort-Object -Unique) -join ','
+    $tablesParam = [uri]::EscapeDataString($tables)
+
+    # --- call perms endpoint ---
+    $uri = "http://localhost:8182/SupportPlus/FindColumnsPerms?Tables=$tablesParam"
+
+    $headers = @{
+      "Accept"             = "application/json"
+      "X-Forwarded-For"     = "127.0.0.1"
+      "X-Forwarded-Host"    = "localhost:8182"
+      "X-Forwarded-Proto"   = "http"
+    }
+
+    $res = Invoke-WebRequest -Uri $uri -Method Get -Headers $headers -WebSession $session -ErrorAction Stop
+
+    # --- parse perms JSON (Person -> [..], Org -> [..]) ---
+    $permsObj = $res.Content
+
+    # Convert PSCustomObject to hashtable: tableName -> string[]
+    $allowedByTable = @{}
+    foreach ($p in $permsObj.PSObject.Properties) {
+      $allowedByTable[$p.Name] = @($p.Value)  # force array
+    }
+
+    # --- filter dbObjects columns based on allowed columns ---
+    $dbObjectsFiltered = Filter-DbObjectsByAllowedColumns -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
+
+    # --- export filtered objects ---
+    Export-DbObjectsToDmObjectsXml -DbObjects $dbObjectsFiltered -OutXmlPath $OutXmlPath -PreviewXml:$PreviewXml | Out-Null
+
+    #Export-DbObjectsToDmObjectsXml -DbObjects $dbObjectsFiltered -OutXmlPath $OutXmlPath -PreviewXml:$PreviewXml -CSVMode $True
+
+    }
+
+    # =========================
+    # For Templates {
+    # =========================
+
+    $templates = Get-TemplatesFromChangeContent -Path $Path
+    Write-Host "Templates found: $($templates.Count)" -ForegroundColor Cyan
+
+    if ($templates.Count -gt 0) {
+        $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    
+    $loginUri="http://localhost:8182/imx/login/SupportPlus"
+    $body = @{ Module="DialogUser"; User="viadmin"; Password="Password.123" } | ConvertTo-Json
+    Invoke-WebRequest -Uri $loginUri -Method Post -ContentType "application/json" -Body $body -WebSession $session | Out-Null
+      $outDirTemplates = Join-Path (Split-Path -Parent $OutXmlPath) "Templates"
+      Write-TemplatesAsVbNetFiles -Templates $templates -OutDir $outDirTemplates
+    } else {
+      Write-Host "No templates found in ChangeContent in: $Path" -ForegroundColor Yellow
+    }
+    foreach ($t in $templates){
+        $columnKey = $t.ColumnName
+        $uri = "http://localhost:8182/SupportPlus/GetTableNameColumnName?UID_DialogColumn=$columnKey"
+
+        $headers = @{
+          "Accept"             = "application/json"
+          "X-Forwarded-For"     = "127.0.0.1"
+          "X-Forwarded-Host"    = "localhost:8182"
+          "X-Forwarded-Proto"   = "http"
+        }
+
+        $res = Invoke-WebRequest -Uri $uri -Method Get -Headers $headers -WebSession $session -ErrorAction Stop
+    
+
+    }
+
+
+
+
+
+
+    # =========================
+    # } End Templates
+    # =========================
+    $doc=[xml](Get-Content -Raw $Path)
+    $cc=$doc.SelectNodes("//*[local-name()='Column' and @Name='ChangeContent']")[0]
+    $cc.GetAttribute("Display")
+    $cc.SelectSingleNode("./*[local-name()='Value']").InnerText
 }
-else{
-
-# --- login session ---
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-
-$loginUri="http://localhost:8182/imx/login/SupportPlus"
-$body = @{ Module="DialogUser"; User="viadmin"; Password="Password.123" } | ConvertTo-Json
-Invoke-WebRequest -Uri $loginUri -Method Post -ContentType "application/json" -Body $body -WebSession $session | Out-Null
-
-# --- build tables csv (unique) ---
-$tables = ($dbObjects.tableName | Where-Object { $_ } | Sort-Object -Unique) -join ','
-$tablesParam = [uri]::EscapeDataString($tables)
-
-# --- call perms endpoint ---
-$uri = "http://localhost:8182/SupportPlus/FindColumnsPerms?Tables=$tablesParam"
-
-$headers = @{
-  "Accept"             = "application/json"
-  "X-Forwarded-For"     = "127.0.0.1"
-  "X-Forwarded-Host"    = "localhost:8182"
-  "X-Forwarded-Proto"   = "http"
+finally {
+  # cleanup extracted zip contents
+  if ($resolved -and $resolved.TempDir -and (Test-Path -LiteralPath $resolved.TempDir)) {
+    Remove-Item -LiteralPath $resolved.TempDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }
-
-$res = Invoke-WebRequest -Uri $uri -Method Get -Headers $headers -WebSession $session -ErrorAction Stop
-
-# --- parse perms JSON (Person -> [..], Org -> [..]) ---
-$permsObj = $res.Content
-
-# Convert PSCustomObject to hashtable: tableName -> string[]
-$allowedByTable = @{}
-foreach ($p in $permsObj.PSObject.Properties) {
-  $allowedByTable[$p.Name] = @($p.Value)  # force array
-}
-
-# --- filter dbObjects columns based on allowed columns ---
-$dbObjectsFiltered = Filter-DbObjectsByAllowedColumns -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
-
-# --- export filtered objects ---
-#Export-DbObjectsToDmObjectsXml -DbObjects $dbObjectsFiltered -OutXmlPath $OutXmlPath -PreviewXml:$PreviewXml | Out-Null
-
-Export-DbObjectsToDmObjectsXml -DbObjects $dbObjectsFiltered -OutXmlPath $OutXmlPath -PreviewXml:$PreviewXml -CSVMode $True
-}
-
-# =========================
-# For Templates {
-# =========================
-$templates = Get-TemplatesFromChangeContent -Path $Path
-Write-Host "Templates found: $($templates.Count)" -ForegroundColor Cyan
-
-if ($templates -and $templates.Count -gt 0) {
-  $outDirTemplates = Join-Path (Split-Path -Parent $OutXmlPath) "Templates"
-  Write-TemplatesAsVbNetFiles -Templates $templates -OutDir $outDirTemplates
-} else {
-  Write-Host "No templates found in ChangeContent in: $Path" -ForegroundColor Yellow
-}
-
-
-# =========================
-# } End Templates
-# =========================
-$doc=[xml](Get-Content -Raw $Path)
-$cc=$doc.SelectNodes("//*[local-name()='Column' and @Name='ChangeContent']")[0]
-$cc.GetAttribute("Display").Substring(0,60)
-$cc.SelectSingleNode("./*[local-name()='Value']").InnerXml.Substring(0,60)
-
-$doc=[xml](Get-Content -Raw $Path)
-($doc.SelectNodes("//*[local-name()='Column' and @Name='ChangeContent']")[0].OuterXml.Substring(0,200))
