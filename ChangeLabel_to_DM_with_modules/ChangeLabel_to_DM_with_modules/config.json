@@ -1,6 +1,4 @@
 {
   "ApiBaseUrl": "http://localhost:8182",
-  "ApiModule": "SupportPlus",
-  "ApiUser": "viadmin",
-  "ApiPassword": "P@ssword.123"
+  "ApiModule": "SupportPlus"
 }

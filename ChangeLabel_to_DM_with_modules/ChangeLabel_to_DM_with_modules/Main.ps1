@@ -58,7 +58,11 @@ param(
 
   [string]$ApiBaseUrl = "http://localhost:8182",
   [string]$ApiModule  = "SupportPlus",
+  [Parameter(Mandatory = $true)]
+  [ValidateNotNullOrEmpty()]
   [string]$ApiUser    = "viadmin",
+  [Parameter(Mandatory = $true)]
+  [ValidateNotNullOrEmpty()]
   [string]$ApiPassword = "Password.123"
 )
 
@@ -72,8 +76,6 @@ if (Test-Path -LiteralPath $configPath) {
 
     if (-not $PSBoundParameters.ContainsKey('ApiBaseUrl') -and $cfg.ApiBaseUrl) { $ApiBaseUrl = [string]$cfg.ApiBaseUrl }
     if (-not $PSBoundParameters.ContainsKey('ApiModule')  -and $cfg.ApiModule)  { $ApiModule  = [string]$cfg.ApiModule  }
-    if (-not $PSBoundParameters.ContainsKey('ApiUser')    -and $cfg.ApiUser)    { $ApiUser    = [string]$cfg.ApiUser    }
-    if (-not $PSBoundParameters.ContainsKey('ApiPassword') -and $cfg.ApiPassword) { $ApiPassword = [string]$cfg.ApiPassword }
 
   } catch {
     throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
