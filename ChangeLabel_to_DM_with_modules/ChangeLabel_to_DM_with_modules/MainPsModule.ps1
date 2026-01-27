@@ -73,7 +73,8 @@ if (Test-Path -LiteralPath $configPath) {
 $modulesDir = Join-Path $scriptDir "Modules"
 
 Import-Module (Join-Path $modulesDir "DBObjects/DBObjects_Main_PsModule.psm1") -Force
-Import-Module (Join-Path $modulesDir "Templates/Templates_Main.psm1") -Force
+Import-Module (Join-Path $modulesDir "Process/Process_Main_PsModule.psm1") -Force
+Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "ExtractXMLFromZip.psm1") -Force
 #endregion
 
@@ -83,5 +84,6 @@ $resolved = Resolve-TagDataXmlFromZip -ZipPath $zipPath
 $Path     = $resolved.TagDataXmlPath
 
 DBObjects_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
-Templates_Main -Path $Path -OutPath $OutPath -ApiBaseUrl $ApiBaseUrl -ApiModule $ApiModule -ApiUser $ApiUser -ApiPassword $ApiPassword
+Process_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
+Templates_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
 #endregion

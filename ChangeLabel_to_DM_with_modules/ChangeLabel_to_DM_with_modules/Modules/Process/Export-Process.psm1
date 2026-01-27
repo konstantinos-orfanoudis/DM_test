@@ -25,7 +25,7 @@ DeploymentManager xml file.
 .EXAMPLE
 Export-Process.ps1 "My Job Chain" "Person" "C:\temp\myjobchain.xml"
 #>
-
+function Export-Process{
 param(
     [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$Name , 
     [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$TableName , 
@@ -182,3 +182,9 @@ $oimJobChain |% {
 }
 
 $dm.ToXml($OutFilePath)
+}
+
+# Export module members
+Export-ModuleMember -Function @(
+  'Export-Process'
+)
