@@ -10,10 +10,15 @@
   ./MainPsModule.ps1 -Path C:\Users\aiuser\Documents\GitHub\DM_test\CCC_Temp2.zip -OutPath "C:/" -ConfigDir C:\DMWorkshop2\Config\Example -DMDll C:\Users\aiuser\Desktop\DeploymentManager-4.0.6-beta\Intragen.Deployment.OneIdentity.dll
 
 
+# call scripts
+./MainPsModule.ps1 -Path C:\Users\aiuser\Documents\scripts.zip -OutPath "C:/Test" -ConfigDir C:\DMWorkshop2\Config\Example -DMDll C:\Users\aiuser\Desktop\DeploymentManager-4.0.6-beta\Intragen.Deployment.OneIdentity.dll
+
+
 # Logger usage 
 $Logger = Get-Logger # initialize Logger 
 
-$Logger.Info("mpla mpla mpla")
+$Logger.Info("mpla mpla mpla") # actual logging
+
 
 
 # If I want to change the path of the log file, where logs are stored then I will change:
