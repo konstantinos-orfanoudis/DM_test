@@ -18,6 +18,9 @@ function Resolve-TagDataXmlFromZip {
   New-Item -ItemType Directory -Path $tempDir | Out-Null
 
   try {
+    $result = [System.Collections.ArrayList]::new()
+
+
     Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempDir -Force
 
     $tagTransportDir = Get-ChildItem -LiteralPath $tempDir -Directory -Recurse |
@@ -28,21 +31,28 @@ function Resolve-TagDataXmlFromZip {
       throw "Could not find a 'TagTransport' folder inside the zip."
     }
 
-    $tagDataFiles = Get-ChildItem -LiteralPath $tagTransportDir.FullName -Recurse -File -Filter "TagData.xml"
 
-    if (-not $tagDataFiles -or $tagDataFiles.Count -eq 0) {
-      throw "Could not find TagData.xml under: $($tagTransportDir.FullName)"
+    $changeLabels = Get-ChildItem -LiteralPath $tagTransportDir -Directory -Recurse
+
+    Foreach ($change in $changeLabels){
+
+      $tagDataFiles = Get-ChildItem -LiteralPath $change.FullName -Recurse -File -Filter "TagData.xml"
+
+      if (-not $tagDataFiles -or $tagDataFiles.Count -eq 0) {
+        throw "Could not find TagData.xml under: $($change.FullName)"
+      }
+
+      if ($tagDataFiles.Count -gt 1) {
+        Write-Host "Warning: Multiple TagData.xml files found. Using the first one:" -ForegroundColor Yellow
+        Write-Host "  $($tagDataFiles[0].FullName)" -ForegroundColor Yellow
+      }
+      $result.Add([pscustomobject]@{
+        TempDir         = $tempDir
+        TagDataXmlPath  = $tagDataFiles[0].FullName
+      }) 
     }
 
-    if ($tagDataFiles.Count -gt 1) {
-      Write-Host "Warning: Multiple TagData.xml files found. Using the first one:" -ForegroundColor Yellow
-      Write-Host "  $($tagDataFiles[0].FullName)" -ForegroundColor Yellow
-    }
-
-    return [pscustomobject]@{
-      TempDir         = $tempDir
-      TagDataXmlPath  = $tagDataFiles[0].FullName
-    }
+    return $result
   }
   catch {
     # if we fail, clean up tempDir before throwing

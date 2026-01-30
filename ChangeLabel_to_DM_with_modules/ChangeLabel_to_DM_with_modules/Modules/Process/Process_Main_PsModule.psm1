@@ -24,11 +24,14 @@ param(
   [ValidateNotNullOrEmpty()]
   [string]$OutPath,
 
-   [Parameter(Mandatory = $true)]
-    [string]$ConfigDir,
+  [Parameter(Mandatory = $true)]
+  [string]$ConfigDir,
 
-    [Parameter(Mandatory = $true)]
-    [string]$DMDll
+  [Parameter(Mandatory = $true)]
+  [string]$LogPath,
+
+  [Parameter(Mandatory = $true)]
+  [string]$DMDll
 
 
 )

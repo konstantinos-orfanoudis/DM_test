@@ -34,6 +34,9 @@ param(
   [string]$ConfigDir,
 
   [Parameter(Mandatory = $true)]
+  [string]$LogPath,
+
+  [Parameter(Mandatory = $true)]
   [string]$DMDll
 
 )

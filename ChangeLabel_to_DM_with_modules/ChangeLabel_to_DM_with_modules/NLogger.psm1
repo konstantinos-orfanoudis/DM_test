@@ -14,7 +14,12 @@ function global:Get-FunctionName ([int]$StackNumber = 1) {return [string]$(Get-P
 
 function global:Get-Logger() {
 
-  param ( [parameter(mandatory=$false)] [System.String]$instanceName)
+  param ( 
+    [parameter(mandatory=$false)] 
+    [System.String]$instanceName,
+    [Parameter(Mandatory = $true)]
+    [string]$LogPath,
+  )
 
   $method = Get-FunctionName -StackNumber 2
 
@@ -30,7 +35,7 @@ function global:Get-Logger() {
 
   $debugLog.CreateDirs    = $true
 
-  $debugLog.FileName      = "E:\Install\PowerShell scripts\Ultimo_Connector\ultimo_log.log" #Setup logfile path
+  $debugLog.FileName      = $LogPath #Setup logfile path
 
   $debugLog.Encoding      = [System.Text.Encoding]::GetEncoding("utf-8")
 
@@ -40,7 +45,7 @@ function global:Get-Logger() {
 
   $debugLog.maxArchiveFiles   = 7
 
-  $debugLog.archiveFileName   = "E:\Install\PowerShell scripts\Ultimo_Connector\ultimo_log{#}.log" #Setup logfile path
+  $debugLog.archiveFileName   = "$LogPath{#}.log" #Setup logfile path
 
   $logCfg.AddTarget("file", $debugLog)
 

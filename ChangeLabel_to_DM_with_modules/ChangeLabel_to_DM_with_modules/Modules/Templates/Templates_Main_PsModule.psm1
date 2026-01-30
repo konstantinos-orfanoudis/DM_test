@@ -49,6 +49,10 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$ConfigDir,
+
+  [Parameter(Mandatory = $true)]
+  [string]$LogPath,
+  
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$DMDll

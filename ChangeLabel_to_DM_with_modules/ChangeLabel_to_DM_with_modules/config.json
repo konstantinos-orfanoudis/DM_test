@@ -1,4 +1,10 @@
 {
-  "ApiBaseUrl": "http://localhost:8182",
-  "ApiModule": "SupportPlus"
+  "DMConfigDir": "C:\\DMWorkshop2\\Config\\Example",
+  "DMConfigDir" : "",
+  "OutPath":"",
+  "LogPath":"",
+  "IncludeEmptyValues": "",
+  "PreviewXml" : "",
+  "CSVMode": "",
+  "DMDll": ""
 }

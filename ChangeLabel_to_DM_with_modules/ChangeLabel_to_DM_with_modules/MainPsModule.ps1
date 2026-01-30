@@ -37,37 +37,22 @@
 param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$Path,
+  [string]$ZipPath,
 
-  [Parameter(Mandatory = $true)]
-  [ValidateNotNullOrEmpty()]
+  [string]$DMConfigDir,
   [string]$OutPath,
-
   [switch]$IncludeEmptyValues,
   [switch]$PreviewXml,
   [switch]$CSVMode,
-
-  [Parameter(Mandatory)]
-    [string]$ConfigDir,
-
-    [Parameter(Mandatory)]
-    [string]$DMDll
+  [string]$DMDll
+     
 )
 
 # --- Load config.json defaults (only for params not explicitly passed) ---
 $scriptDir   = $PSScriptRoot
-$configPath  = Join-Path $scriptDir 'config.json'
 
-if (Test-Path -LiteralPath $configPath) {
-  try {
-    
 
-    
 
-  } catch {
-    throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
-  }
-}
 
 #region Module Imports
 $modulesDir = Join-Path $scriptDir "Modules"
@@ -77,15 +62,24 @@ Import-Module (Join-Path $modulesDir "Process/Process_Main_PsModule.psm1") -Forc
 Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Scripts/Scripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "ExtractXMLFromZip.psm1") -Force
+Import-Module (Join-Path $scriptDir "InputValidator.psm1") -Force
 #endregion
 
 #region Main Execution
-$zipPath  = $Path
-$resolved = Resolve-TagDataXmlFromZip -ZipPath $zipPath
-$Path     = $resolved.TagDataXmlPath
+$resolved = Resolve-TagDataXmlFromZip -ZipPath $ZipPath
+write-Host $resolved
 
-DBObjects_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
-Process_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
-Templates_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
-Scripts_Main_PsModule -Path $Path -OutPath $OutPath -ConfigDir $ConfigDir -DMDll $DMDll
+
+
+
+$config = InputValidator -DMConfigDir $DMConfigDir -OutPath $OutPath -LogPath $LogPath -IncludeEmptyValues $IncludeEmptyValues  -PreviewXml $PreviewXml -CSVMode $CSVMode -DMDll $DMDll
+  foreach($Path in  $resolved){
+
+    DBObjects_Main_PsModule -Path $Path.TagDataXmlPath -OutPath $config.OutPath -LogPath $config.LogPath -ConfigDir $config.ConfigDir -DMDll $config.DMDll
+    Process_Main_PsModule -Path $Path.TagDataXmlPath -OutPath $config.OutPath -LogPath $config.LogPath -ConfigDir $config.ConfigDir -DMDll $config.DMDll
+    Templates_Main_PsModule -Path $Path.TagDataXmlPath -OutPath $config.OutPath -LogPath $config.LogPath -ConfigDir $config.ConfigDir -DMDll $config.DMDll
+    Scripts_Main_PsModule -Path $Path.TagDataXmlPath -OutPath $config.OutPath -LogPath $config.LogPath -ConfigDir $config.ConfigDir -DMDll $config.DMDll
+  }
 #endregion
+
+
