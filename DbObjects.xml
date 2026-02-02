@@ -1,9 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-16"?>
-<Objects xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.intragen.com/xsd/XmlObjectSchema">
-  <Keys>
-    <Org>UID_Org</Org>
-  </Keys>
-  <Org>
-    <UID_Org>96050196-f094-4cf4-9fed-7ca895236c5a</UID_Org>
-  </Org>
-</Objects>

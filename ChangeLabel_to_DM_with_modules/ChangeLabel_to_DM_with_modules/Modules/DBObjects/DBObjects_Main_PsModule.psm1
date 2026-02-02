@@ -13,6 +13,12 @@
 .PARAMETER OutPath
   Output directory path where all files will be exported.
 
+.PARAMETER ConfigDir
+  Configuration directory for OIM connection.
+
+.PARAMETER LogPath
+  Optional log file path. If not provided, defaults to OutPath\Logs\export.log
+
 .PARAMETER IncludeEmptyValues
   If set, includes columns even when their value is empty. Default: off.
 
@@ -22,70 +28,71 @@
 .PARAMETER CSVMode
   If set, generates schema-only XML files with @placeholders@ and separate CSV files per table.
 
-
-
-.EXAMPLE
-  .\Main.ps1 -Path "C:\Input\tagdata.xml" -OutPath "C:\Output"
+.PARAMETER DMDll
+  Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  .\Main.ps1 -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -CSVMode
+  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
 
 .EXAMPLE
-  .\Main.ps1 -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -CSVMode -PreviewXml
+  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode
+
+.EXAMPLE
+  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode -PreviewXml
 #>
 
 function DBObjects_Main_PsModule{
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [ValidateNotNullOrEmpty()]
-  [string]$Path,
+  [string]$ZipPath,
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$OutPath,
+  
   [Parameter(Mandatory = $true)]
-  [string]$ConfigDir,
+  [ValidateNotNullOrEmpty()]
+  [string]$DMConfigDir,
 
-  [Parameter(Mandatory = $true)]
-  [string]$LogPath,
+  [Parameter(Mandatory = $false)]
+  [string]$LogPath = "",
 
-  [Parameter(Mandatory = $true)]
+  [Parameter(Mandatory = $false)]
   [switch]$IncludeEmptyValues,
 
-  [Parameter(Mandatory = $true)]
+  [Parameter(Mandatory = $false)]
   [switch]$PreviewXml,
 
-  [Parameter(Mandatory = $true)]
+  [Parameter(Mandatory = $false)]
   [switch]$CSVMode,
    
   [Parameter(Mandatory = $true)]
+  [ValidateNotNullOrEmpty()]
   [string]$DMDll
-
 )
 
 #region Module Imports
-
 $scriptDir = $PSScriptRoot
 $parent = Split-Path -Parent $PSScriptRoot
+
 # Import all required modules
 Import-Module (Join-Path $scriptDir "DBObjects_XmlParser.psm1") -Force
 Import-Module (Join-Path $parent "PsModuleLogin.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_XmlExporter.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_CsvExporter.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_FilterColumnsPsModule.psm1") -Force
-
 #endregion
 
 #region Main Execution
-
 try {
   Write-Host "OIM DbObjects Export Tool" -ForegroundColor Cyan
   Write-Host "Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})"
   Write-Host ""
 
   # Step 1: Parse input XML
-  Write-Host "[1/5] Parsing input XML: $Path"
-  $dbObjects = Get-AllDbObjectsFromChangeContent -Path $Path -IncludeEmptyValues -LogPath $LogPath
+  Write-Host "[1/5] Parsing input XML: $ZipPath"
+  $dbObjects = Get-AllDbObjectsFromChangeContent -Path $ZipPath -IncludeEmptyValues:$IncludeEmptyValues
 
   if (-not $dbObjects -or $dbObjects.Count -eq 0) {
     Write-Host "No embedded DbObjects found in ChangeContent columns." -ForegroundColor Yellow
@@ -97,21 +104,20 @@ try {
   Write-Host ""
 
   # Step 2: Login to API
-
-  $session = Connect-OimPSModule -ConfigDir $ConfigDir -DMDll $DMDll -LogPath $LogPath
-
+  Write-Host "[2/5] Opening session with DMConfigDir: $DMConfigDir"
+  $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
   Write-Host "Authentication successful"
   Write-Host ""
 
   # Step 3: Get column permissions
   Write-Host "[3/5] Retrieving column permissions for tables: $($uniqueTables -join ', ')"
-  $allowedByTable = Get-ColumnPermissionsPsModule -Session $session -Tables $uniqueTables -LogPath $LogPath
+  $allowedByTable = Get-ColumnPermissionsPsModule -Session $session -Tables $uniqueTables
   Write-Host "Retrieved permissions for $($allowedByTable.Count) table(s)"
   Write-Host ""
 
   # Step 4: Filter columns
   Write-Host "[4/5] Filtering columns based on permissions"
-  $dbObjectsFiltered = Filter-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable -LogPath $LogPath
+  $dbObjectsFiltered = Filter-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
   $totalColumns = ($dbObjectsFiltered | ForEach-Object { $_.Columns.Count } | Measure-Object -Sum).Sum
   Write-Host "Retained $totalColumns allowed column(s) across all objects"
   Write-Host ""
@@ -120,10 +126,10 @@ try {
   Write-Host "[5/5] Exporting to: $OutPath"
   
   if ($CSVMode) {
-    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml -LogPath $LogPath | Out-Null
+    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml | Out-Null
   }
   else {
-    Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml -LogPath $LogPath | Out-Null
+    Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml | Out-Null
   }
   
   Write-Host ""
@@ -140,7 +146,6 @@ catch {
   }
   throw
 }
-
 #endregion
 }
 

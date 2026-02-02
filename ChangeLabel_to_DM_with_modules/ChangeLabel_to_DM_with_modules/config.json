@@ -1,10 +1,10 @@
 {
-  "DMConfigDir": "C:\\DMWorkshop2\\Config\\Example",
-  "DMConfigDir" : "",
-  "OutPath":"",
-  "LogPath":"",
-  "IncludeEmptyValues": "",
-  "PreviewXml" : "",
-  "CSVMode": "",
-  "DMDll": ""
+  "DMConfigDir": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Config\\Example",
+  "OutPath":"C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM",
+  "ZipPath":"C:\\Users\\OneIM\\Desktop\\Git\\DM_test\\testZip.zip",
+  "LogPath": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Logs",
+  "IncludeEmptyValues": false,
+  "PreviewXml" : false,
+  "CSVMode": false,
+  "DMDll": "C:\\Users\\OneIM\\Desktop\\DeploymentManager_4.0.6_beta\\Intragen.Deployment.OneIdentity.dll"
 }

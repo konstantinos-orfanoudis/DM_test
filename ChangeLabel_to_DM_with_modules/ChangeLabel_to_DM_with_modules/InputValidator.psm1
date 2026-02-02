@@ -1,5 +1,3 @@
-
-
 function InputValidator{
 param(
   [string]$DMConfigDir,
@@ -10,9 +8,6 @@ param(
   [switch]$CSVMode,
   [string]$DMDll   
 )
-
-
-
 
 $scriptDir = $PSScriptRoot
 
@@ -25,34 +20,24 @@ $config = $null
 "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($configPath))"
 
 if(Test-Path -LiteralPath $configPath) {
-
-    
     try{
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-  
-    
-
-  } catch {
-    throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
-  }
+    } catch {
+        throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
+    }
 }
 Else{
   throw "The config.json does not exist at '$configPath'"
 }
 
-
 # Merge values: CLI wins; otherwise use config (if present and non-empty for strings)
-$ZipPathFromConfig   = Get-ConfigPropValue $config "ZipPath"
-$ConfigDirFromConfig = Get-ConfigPropValue $config "ConfigDir"
+$DMConfigDirFromConfig = Get-ConfigPropValue $config "DMConfigDir"
 $OutPathFromConfig   = Get-ConfigPropValue $config "OutPath"
 $LogPathFromConfig   = Get-ConfigPropValue $config "LogPath"
 $DMDllFromConfig     = Get-ConfigPropValue $config "DMDll"
 
-if (-not $PSBoundParameters.ContainsKey("ZipPath") -and -not [string]::IsNullOrWhiteSpace($ZipPathFromConfig)) {
-  $ZipPath = [string]$ZipPathFromConfig
-}
-if (-not $PSBoundParameters.ContainsKey("ConfigDir") -and -not [string]::IsNullOrWhiteSpace($ConfigDirFromConfig)) {
-  $ConfigDir = [string]$ConfigDirFromConfig
+if (-not $PSBoundParameters.ContainsKey("DMConfigDir") -and -not [string]::IsNullOrWhiteSpace($DMConfigDirFromConfig)) {
+  $DMConfigDir = [string]$DMConfigDirFromConfig
 }
 if (-not $PSBoundParameters.ContainsKey("OutPath") -and -not [string]::IsNullOrWhiteSpace($OutPathFromConfig)) {
   $OutPath = [string]$OutPathFromConfig
@@ -70,44 +55,86 @@ $IncludeEmptyFromConfig = Get-ConfigPropValue $config "IncludeEmptyValues"
 $PreviewXmlFromConfig   = Get-ConfigPropValue $config "PreviewXml"
 $CSVModeFromConfig      = Get-ConfigPropValue $config "CSVMode"
 
-if (-not $PSBoundParameters.ContainsKey("IncludeEmptyValues") -and $IncludeEmptyFromConfig -is [bool]) {
+# Apply switch values: CLI parameter takes precedence, then config, then default to $false
+if ($PSBoundParameters.ContainsKey("IncludeEmptyValues")) {
+  # User explicitly passed the switch
+  $IncludeEmptyValues = [bool]$IncludeEmptyValues
+}
+elseif ($IncludeEmptyFromConfig -is [bool]) {
+  # Use config value
   $IncludeEmptyValues = [bool]$IncludeEmptyFromConfig
 }
-if (-not $PSBoundParameters.ContainsKey("PreviewXml") -and $PreviewXmlFromConfig -is [bool]) {
+else {
+  # Default to false
+  $IncludeEmptyValues = $false
+}
+
+if ($PSBoundParameters.ContainsKey("PreviewXml")) {
+  $PreviewXml = [bool]$PreviewXml
+}
+elseif ($PreviewXmlFromConfig -is [bool]) {
   $PreviewXml = [bool]$PreviewXmlFromConfig
 }
-if (-not $PSBoundParameters.ContainsKey("CSVMode") -and $CSVModeFromConfig -is [bool]) {
+else {
+  $PreviewXml = $false
+}
+
+if ($PSBoundParameters.ContainsKey("CSVMode")) {
+  $CSVMode = [bool]$CSVMode
+}
+elseif ($CSVModeFromConfig -is [bool]) {
   $CSVMode = [bool]$CSVModeFromConfig
+}
+else {
+  $CSVMode = $false
 }
 
 # Validate required values AFTER merge
 $missing = @()
 
-if ([string]::IsNullOrWhiteSpace($ZipPath))   { $missing += "ZipPath" }
-if ([string]::IsNullOrWhiteSpace($ConfigDir)) { $missing += "ConfigDir" }
+if ([string]::IsNullOrWhiteSpace($DMConfigDir)) { $missing += "DMConfigDir" }
 
 if ($missing.Count -gt 0) {
-  $where = if (Test-Path -LiteralPath $ConfigFile) { "command line or config file '$ConfigFile'" } else { "command line (config file '$ConfigFile' not found)" }
-  throw "Missing required parameter(s): $($missing -join ', '). Provide via $where."
+  throw "Missing required parameter(s): $($missing -join ', '). Provide via command line or config file '$configPath'."
 }
 
-# Optional: normalize paths
-$ZipPath   = (Resolve-Path -LiteralPath $ZipPath).Path
-$ConfigDir = (Resolve-Path -LiteralPath $ConfigDir).Path
-if (-not [string]::IsNullOrWhiteSpace($OutPath)) { $OutPath = (Resolve-Path -LiteralPath $OutPath).Path }
-if (-not [string]::IsNullOrWhiteSpace($LogPath)) { $LogPath = (Resolve-Path -LiteralPath $LogPath).Path }
+# Optional: normalize paths if they exist
+if (-not [string]::IsNullOrWhiteSpace($DMConfigDir) -and (Test-Path -LiteralPath $DMConfigDir)) {
+  $DMConfigDir = (Resolve-Path -LiteralPath $DMConfigDir).Path
+}
+if (-not [string]::IsNullOrWhiteSpace($OutPath)) { 
+  # Create output directory if it doesn't exist
+  if (-not (Test-Path -LiteralPath $OutPath)) {
+    New-Item -ItemType Directory -Path $OutPath -Force | Out-Null
+  }
+  $OutPath = (Resolve-Path -LiteralPath $OutPath).Path 
+}
+else {
+  # Default OutPath to current directory
+  $OutPath = (Get-Location).Path
+}
 
+# Handle LogPath - create default if not provided
+if ([string]::IsNullOrWhiteSpace($LogPath)) {
+  # Default: Logs directory under OutPath
+  $LogPath = Join-Path $OutPath "Logs\export.log"
+}
+
+# Create log directory if it doesn't exist
+$logDir = Split-Path -Parent $LogPath
+if ($logDir -and -not (Test-Path -LiteralPath $logDir)) {
+  New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+}
 
 return [pscustomobject]@{ 
-                          ZipPath            =           $ZipPath
-                          ConfigDir          =           $ConfigDir
-                          OutPath            =           $OutPath
-                          LogPath            =           $LogPath
-                          DMDll              =           $DMDll
-                          IncludeEmptyValues =           [bool]$IncludeEmptyValues
-                          PreviewXml         =           [bool]$PreviewXml;
-                          CSVMode            =           [bool]$CSVMode
-                        }
+  DMConfigDir        = $DMConfigDir
+  OutPath            = $OutPath
+  LogPath            = $LogPath
+  DMDll              = $DMDll
+  IncludeEmptyValues = [bool]$IncludeEmptyValues
+  PreviewXml         = [bool]$PreviewXml
+  CSVMode            = [bool]$CSVMode
+}
 
 }
 
@@ -123,7 +150,6 @@ function Get-ConfigPropValue {
   }
   return $null
 }
-
 
 # Export module members
 Export-ModuleMember -Function @(
