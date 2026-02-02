@@ -162,8 +162,9 @@ function Export-ToCsvMode {
 
     $xmlString = $sw.ToString()
 
-    # Write XML to file
-    $xmlString | Out-File -LiteralPath $tableXmlPath -Encoding utf8
+    # Write XML to file (UTF-8 without BOM)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tableXmlPath, $xmlString, $utf8NoBom)
 
     Write-Host "Wrote schema XML: $tableXmlPath"
 
@@ -213,8 +214,10 @@ function Export-ToCsvMode {
       }
     }
     
-    # Write CSV to file
-    $csvRows | Out-File -LiteralPath $tableCsvPath -Encoding utf8
+    # Write CSV to file (UTF-8 without BOM)
+    $csvContent = $csvRows -join "`r`n"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tableCsvPath, $csvContent, $utf8NoBom)
     
     $rowCount = if ($objectsByTable.Contains($tableName)) { $objectsByTable[$tableName].Count } else { 0 }
     Write-Host "Wrote data CSV: $tableCsvPath (Rows: $rowCount)"

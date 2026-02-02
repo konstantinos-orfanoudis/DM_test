@@ -38,7 +38,6 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$ZipPath,
-
   [string]$DMConfigDir,
   [string]$OutPath,
   [string]$LogPath,

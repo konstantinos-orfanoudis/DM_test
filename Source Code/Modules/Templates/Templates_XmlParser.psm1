@@ -12,7 +12,7 @@ function Get-TemplatesFromChangeContent {
 
   # Read whole file + decode a few times (handles &lt; and &amp;lt;)
   $text = Get-Content -LiteralPath $ZipPath -Raw
-  for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }
+  $text = [System.Net.WebUtility]::HtmlDecode($text) # If more than 1 time encoded, use the For-Block "for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }"
 
   function Sanitize-FilePart([string]$s) {
     if ([string]::IsNullOrWhiteSpace($s)) { return "" }
@@ -39,6 +39,34 @@ function Get-TemplatesFromChangeContent {
     "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']IsOverwritingTemplate[""'][^>]*>.*?<Value>\s*True\s*</Value>"
   )
 
+  # First pass: Build map of ObjectKey -> IsOverwritingTemplate flag
+  Write-Host "  [DEBUG] Building IsOverwritingTemplate map..." -ForegroundColor Gray
+  $overwriteMap = @{}
+  
+  foreach ($dboMatch in $reDbObject.Matches($text)) {
+    $dboText = $dboMatch.Value
+    
+    # Extract ObjectKey
+    $mKey = $reObjectKeyTP.Match($dboText)
+    if (-not $mKey.Success) { continue }
+    
+    $tableName  = $mKey.Groups[1].Value
+    $columnName = $mKey.Groups[2].Value
+    $objectKey = "$tableName|$columnName"
+    
+    # Check all Diffs in this DbObject for IsOverwritingTemplate
+    foreach ($diffMatch in $reDiff.Matches($dboText)) {
+      $diff = $diffMatch.Value
+      if ($reOverwriteTrue.IsMatch($diff)) {
+        $overwriteMap[$objectKey] = $true
+        Write-Host "    Found IsOverwritingTemplate=True for: $tableName -> $columnName" -ForegroundColor Cyan
+        break
+      }
+    }
+  }
+
+  # Second pass: Extract templates and apply overwrite flag
+  Write-Host "  [DEBUG] Extracting templates..." -ForegroundColor Gray
   $templates = New-Object System.Collections.Generic.List[object]
 
   foreach ($dboMatch in $reDbObject.Matches($text)) {
@@ -59,6 +87,9 @@ function Get-TemplatesFromChangeContent {
     if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
 
+    $objectKey = "$tableName|$columnName"
+    $isOverwrite = if ($overwriteMap.ContainsKey($objectKey)) { $overwriteMap[$objectKey] } else { $false }
+
     foreach ($diffMatch in $reDiff.Matches($dboText)) {
       $diff = $diffMatch.Value
 
@@ -66,12 +97,12 @@ function Get-TemplatesFromChangeContent {
       $tm = $reTemplateValue.Matches($diff)
       if ($tm.Count -eq 0) { continue }
 
-      $isOverwrite = $reOverwriteTrue.IsMatch($diff)
-
       foreach ($m in $tm) {
         # VB file content = inner Template Op <Value>...</Value>
         $vbContent = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
 
+        Write-Host "    Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)" -ForegroundColor Gray
+        
         $templates.Add([pscustomobject]@{
           TableName             = $tableName
           ColumnName            = $columnName
@@ -81,10 +112,8 @@ function Get-TemplatesFromChangeContent {
       }
     }
   }
-
-  # make templates unique
   $templates = $templates | Sort-Object TableName, ColumnName, IsOverwritingTemplate, Content -Unique
-  
+
   return $templates
 }
 

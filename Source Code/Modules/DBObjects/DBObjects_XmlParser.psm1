@@ -132,7 +132,14 @@ function Get-AllDbObjectsFromChangeContent {
       continue
     }
 
+    # Try with wrapper first (<DbObjects><DbObject>...</DbObject></DbObjects>)
     $dbObjects = $innerDoc.SelectNodes("/DbObjects/DbObject")
+    
+    # If not found, try without wrapper (standalone <DbObject>...</DbObject>)
+    if (-not $dbObjects -or $dbObjects.Count -eq 0) {
+      $dbObjects = $innerDoc.SelectNodes("/DbObject")
+    }
+    
     if (-not $dbObjects -or $dbObjects.Count -eq 0) { continue }
 
     foreach ($dbo in $dbObjects) {
@@ -165,17 +172,31 @@ function Get-AllDbObjectsFromChangeContent {
         $colName = $col.GetAttribute("Name")
         if ([string]::IsNullOrWhiteSpace($colName)) { continue }
 
+        # Skip primary key column - it's already written separately
+        if (-not [string]::IsNullOrWhiteSpace($pkName) -and $colName -eq $pkName) {
+          continue
+        }
+
         # Check if it's a foreign key column
         $fkTableNode = $col.SelectSingleNode("./Key/Table")
         if ($fkTableNode) {
+          $fkTableName = $fkTableNode.GetAttribute("Name")
           $refProp = $fkTableNode.SelectSingleNode("./Prop")
+          $refPkName = if ($refProp) { $refProp.GetAttribute("Name") } else { $null }
           $refVal  = if ($refProp) {
             $rv = $refProp.SelectSingleNode("./Value")
             if ($rv) { $rv.InnerText } else { "" }
           } else { "" }
 
           if ($IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($refVal)) {
-            $obj.Columns.Add([pscustomobject]@{ Name = $colName; Value = $refVal })
+            # Store as foreign key reference with metadata
+            $obj.Columns.Add([pscustomobject]@{ 
+              Name = $colName
+              Value = $refVal
+              IsForeignKey = $true
+              FkTableName = $fkTableName
+              FkColumnName = $refPkName
+            })
           }
           continue
         }
@@ -185,7 +206,11 @@ function Get-AllDbObjectsFromChangeContent {
         $valText = if ($valNode) { $valNode.InnerText } else { "" }
 
         if ($IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($valText)) {
-          $obj.Columns.Add([pscustomobject]@{ Name = $colName; Value = $valText })
+          $obj.Columns.Add([pscustomobject]@{ 
+            Name = $colName
+            Value = $valText
+            IsForeignKey = $false
+          })
         }
       }
 

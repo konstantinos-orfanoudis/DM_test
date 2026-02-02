@@ -99,10 +99,29 @@ function Export-ToNormalXml {
         if ([string]::IsNullOrWhiteSpace($col.Name)) { continue }
 
         $xw.WriteStartElement($col.Name, $nsDefault)
-        if ($null -ne $col.Value) {
-          $xw.WriteString([string]$col.Value)
+        
+        # Check if this is a foreign key reference
+        if ($col.IsForeignKey -and 
+            -not [string]::IsNullOrWhiteSpace($col.FkTableName) -and
+            -not [string]::IsNullOrWhiteSpace($col.FkColumnName)) {
+          
+          # Write nested structure: <ColumnName><FkTable><FkColumn>value</FkColumn></FkTable></ColumnName>
+          $xw.WriteStartElement($col.FkTableName, $nsDefault)
+          $xw.WriteStartElement($col.FkColumnName, $nsDefault)
+          if ($null -ne $col.Value) {
+            $xw.WriteString([string]$col.Value)
+          }
+          $xw.WriteEndElement() # </FkColumnName>
+          $xw.WriteEndElement() # </FkTableName>
         }
-        $xw.WriteEndElement()
+        else {
+          # Normal column - just write the value
+          if ($null -ne $col.Value) {
+            $xw.WriteString([string]$col.Value)
+          }
+        }
+        
+        $xw.WriteEndElement() # </ColumnName>
       }
 
       $xw.WriteEndElement() # </TableName>
@@ -118,8 +137,9 @@ function Export-ToNormalXml {
 
   $xmlString = $sw.ToString()
 
-  # Write to file
-  $xmlString | Out-File -LiteralPath $outFile -Encoding utf8
+  # Write to file (UTF-8 without BOM)
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($outFile, $xmlString, $utf8NoBom)
 
   Write-Host "Wrote XML: $outFile"
 
