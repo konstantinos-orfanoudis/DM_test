@@ -53,12 +53,13 @@ $scriptDir = $PSScriptRoot
 
 #region Module Imports
 $modulesDir = Join-Path $scriptDir "Modules"
+$commonDir = Join-Path $modulesDir "Common"
 
 Import-Module (Join-Path $modulesDir "DBObjects/DBObjects_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Process/Process_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Scripts/Scripts_Main_PsModule.psm1") -Force
-Import-Module (Join-Path $modulesDir "ExtractXMLFromZip.psm1") -Force
+Import-Module (Join-Path $commonDir "ExtractXMLFromZip.psm1") -Force
 Import-Module (Join-Path $scriptDir "InputValidator.psm1") -Force
 #endregion
 

@@ -63,7 +63,7 @@ try {
 
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
-  $scripts = Get-ScriptKeysFromChangeLabel -Path $ZipPath 
+  $scripts = Get-ScriptKeysFromChangeLabel -ZipPath $ZipPath 
 
   Write-Host "Found $($scripts.Count) script(s)" -ForegroundColor Cyan
 

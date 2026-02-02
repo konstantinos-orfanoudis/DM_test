@@ -69,7 +69,7 @@ try {
   $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
   
   # Get processes from the XML
-  $processes = GetAllProcessFromChangeLabel -Path $ZipPath -Session $session
+  $processes = GetAllProcessFromChangeLabel -ZipPath $ZipPath -Session $session
   
   Write-Host "Found $($processes.Count) process(es)" -ForegroundColor Cyan
   Write-Host ""
