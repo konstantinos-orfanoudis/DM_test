@@ -73,7 +73,7 @@ function Get-AllDbObjectsFromChangeContent {
   .SYNOPSIS
     Extracts all DbObject structures from ChangeContent columns in the input XML.
   
-  .PARAMETER Path
+  .PARAMETER ZipPath
     Path to the TagData XML file.
   
   .PARAMETER IncludeEmptyValues
@@ -84,12 +84,15 @@ function Get-AllDbObjectsFromChangeContent {
   #>
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)][string]$Path,
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string]$ZipPath,
+    
     [switch]$IncludeEmptyValues
   )
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    throw "File not found: $Path"
+  if (-not (Test-Path -LiteralPath $ZipPath)) {
+    throw "File not found: $ZipPath"
   }
 
   # Load outer XML safely
@@ -97,7 +100,7 @@ function Get-AllDbObjectsFromChangeContent {
   $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
   $settings.XmlResolver   = $null
 
-  $reader = [System.Xml.XmlReader]::Create($Path, $settings)
+  $reader = [System.Xml.XmlReader]::Create($ZipPath, $settings)
   try {
     $outerDoc = New-Object System.Xml.XmlDocument
     $outerDoc.PreserveWhitespace = $false

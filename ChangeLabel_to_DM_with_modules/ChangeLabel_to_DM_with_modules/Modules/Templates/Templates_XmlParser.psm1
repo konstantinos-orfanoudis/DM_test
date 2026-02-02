@@ -1,11 +1,17 @@
 function Get-TemplatesFromChangeContent {
   [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
+  param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string]$ZipPath
+  )
 
-  if (-not (Test-Path -LiteralPath $Path)) { throw "File not found: $Path" }
+  if (-not (Test-Path -LiteralPath $ZipPath)) { 
+    throw "File not found: $ZipPath" 
+  }
 
   # Read whole file + decode a few times (handles &lt; and &amp;lt;)
-  $text = Get-Content -LiteralPath $Path -Raw
+  $text = Get-Content -LiteralPath $ZipPath -Raw
   for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }
 
   function Sanitize-FilePart([string]$s) {
@@ -78,6 +84,7 @@ function Get-TemplatesFromChangeContent {
 
   return $templates
 }
+
 # Export module members
 Export-ModuleMember -Function @(
   'Get-TemplatesFromChangeContent'

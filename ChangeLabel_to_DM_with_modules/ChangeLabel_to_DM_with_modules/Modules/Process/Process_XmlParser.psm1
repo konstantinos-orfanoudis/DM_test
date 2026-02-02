@@ -1,24 +1,19 @@
-
-
-
-
-
 Set-StrictMode -Version Latest
-
 
 function GetAllProcessFromChangeLabel {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrWhiteSpace()]
-    [string]$Path,
+    [string]$ZipPath,
+    
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [Object]$Session
   )
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    throw "File not found: $Path"
+  if (-not (Test-Path -LiteralPath $ZipPath)) {
+    throw "File not found: $ZipPath"
   }
 
   # Safe XML load
@@ -26,7 +21,7 @@ function GetAllProcessFromChangeLabel {
   $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
   $settings.XmlResolver   = $null
 
-  $reader = [System.Xml.XmlReader]::Create($Path, $settings)
+  $reader = [System.Xml.XmlReader]::Create($ZipPath, $settings)
   try {
     $doc = New-Object System.Xml.XmlDocument
     $doc.PreserveWhitespace = $false
@@ -55,7 +50,7 @@ function GetAllProcessFromChangeLabel {
 
   foreach ($dbo in $taggedChangeDbos) {
 
-    # QBMTaggedChange Key attribute (the one you originally asked for)
+    # QBMTaggedChange Key attribute
     $qbmTable = $dbo.SelectSingleNode("./*[local-name()='Key']/*[local-name()='Table' and @Name='QBMTaggedChange']")
     $taggedChangeKey = if ($qbmTable) { $qbmTable.GetAttribute("Key") } else { $null }
     if ([string]::IsNullOrWhiteSpace($taggedChangeKey)) { continue }
@@ -67,29 +62,23 @@ function GetAllProcessFromChangeLabel {
     if ($tNode -and $pNode) {
       $objType = $tNode.InnerText.Trim()
       $objUid  = $pNode.InnerText.Trim()
-      
 
-
-
-       if ($objType -match '(?i)JobChain' -and -not [string]::IsNullOrWhiteSpace($objUid)) {
-            $s = Open-QSql
-            $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$objUid'"
-            $pr = Find-QSql $wc -dict 
-            $uid_table = $pr["UID_DialogTable"]
-            $processName = $pr["Name"]
-            Write-Host $processName + "paizei 133"
-            $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
-            $t = Find-QSql $wc -dict 
-            $TableName = $t["TableName"]
-            Close-QSql
-            [void]$results.Add([pscustomobject]@{
-                TableName = $TableName
-                Name      = $processName
-            })
-        }
-
-
-      
+      if ($objType -match '(?i)JobChain' -and -not [string]::IsNullOrWhiteSpace($objUid)) {
+        $s = Open-QSql
+        $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$objUid'"
+        $pr = Find-QSql $wc -dict 
+        $uid_table = $pr["UID_DialogTable"]
+        $processName = $pr["Name"]
+        $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
+        $t = Find-QSql $wc -dict 
+        $TableName = $t["TableName"]
+        Close-QSql
+        
+        [void]$results.Add([pscustomobject]@{
+          TableName = $TableName
+          Name      = $processName
+        })
+      }
     }
 
     # 2) Try: UID_JobChain from ChangeContent Diff (e.g., JobEventGen rows)
@@ -117,27 +106,25 @@ function GetAllProcessFromChangeLabel {
         $m = $reUidJobChain.Match($decoded)
         if ($m.Success) {
           $uid = $m.Groups["uid"].Value.Trim()
-           Write-Host $uid + " uid 192"
            
-            $s = Open-QSql
-            $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$uid'"
-            $pr = Find-QSql $wc -dict 
-            $uid_table = $pr["UID_DialogTable"]
-            $processName = $pr["Name"]
-            Write-Host $processName + "paizei 133"
-            $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
-            $t = Find-QSql $wc -dict 
-            $TableName = $t["TableName"]
-            Close-QSql
-            [void]$results.Add([pscustomobject]@{
-                TableName = $TableName
-                Name      = $processName
-            })
+          $s = Open-QSql
+          $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$uid'"
+          $pr = Find-QSql $wc -dict 
+          $uid_table = $pr["UID_DialogTable"]
+          $processName = $pr["Name"]
+          $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
+          $t = Find-QSql $wc -dict 
+          $TableName = $t["TableName"]
+          Close-QSql
+          
+          [void]$results.Add([pscustomobject]@{
+            TableName = $TableName
+            Name      = $processName
+          })
         }
       }
     }
   }
-
 
   return $results
 }

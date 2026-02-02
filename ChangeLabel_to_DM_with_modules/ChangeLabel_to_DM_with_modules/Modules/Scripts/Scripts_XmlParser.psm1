@@ -3,18 +3,18 @@ function Get-ScriptKeysFromChangeLabel {
   param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrWhiteSpace()]
-    [string]$Path,
+    [string]$ZipPath,
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrWhiteSpace()]
     [string]$TypeName = "DialogScript"   # the <T> value to match
   )
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    throw "File not found: $Path"
+  if (-not (Test-Path -LiteralPath $ZipPath)) {
+    throw "File not found: $ZipPath"
   }
 
-  $text = Get-Content -LiteralPath $Path -Raw
+  $text = Get-Content -LiteralPath $ZipPath -Raw
 
   # Decode entities a few times (safe even if already decoded)
   for ($i = 0; $i -lt 3; $i++) {
@@ -36,11 +36,6 @@ function Get-ScriptKeysFromChangeLabel {
 
   return $keys
 }
-
-# Example:
-# $dialogScriptKeys = Get-EmbeddedObjectKeysFromTaggedChange -Path "C:\path\TagData.xml" -TypeName "DialogScript"
-# $dialogScriptKeys
-
 
 # Export module members
 Export-ModuleMember -Function @(

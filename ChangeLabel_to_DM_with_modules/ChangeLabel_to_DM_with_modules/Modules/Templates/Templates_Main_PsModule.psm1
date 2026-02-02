@@ -28,7 +28,7 @@ function Templates_Main_PsModule{
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [ValidateNotNullOrEmpty()]
-  [string]$Path,
+  [string]$ZipPath,
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
@@ -36,7 +36,7 @@ param(
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$ConfigDir,
+  [string]$DMConfigDir,
 
   [Parameter(Mandatory = $false)]
   [string]$LogPath = "",
@@ -62,14 +62,14 @@ try {
   Write-Host ""
 
   # Step 1: Parse input XML
-  Write-Host "[1/3] Parsing input XML: $Path"
-  $templates = Get-TemplatesFromChangeContent -Path $Path
+  Write-Host "[1/3] Parsing input XML: $ZipPath"
+  $templates = Get-TemplatesFromChangeContent -Path $ZipPath
   Write-Host "Found $($templates.Count) template(s)" -ForegroundColor Cyan
 
   if ($templates.Count -gt 0) {
     # Step 2: Login to API
-    Write-Host "[2/3] Opening session with ConfigDir: $ConfigDir"
-    $session = Connect-OimPSModule -ConfigDir $ConfigDir -DMDll $DMDll
+    Write-Host "[2/3] Opening session with ConfigDir: $DMConfigDir"
+    $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
     Write-Host "Authentication successful"
     Write-Host ""
     
@@ -82,7 +82,7 @@ try {
     Write-Host "Export completed successfully!" -ForegroundColor Green
   } 
   else {
-    Write-Host "No templates found in ChangeContent in: $Path" -ForegroundColor Yellow
+    Write-Host "No templates found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
   }
 }
 catch {

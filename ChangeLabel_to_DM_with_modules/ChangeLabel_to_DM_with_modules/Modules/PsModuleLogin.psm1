@@ -21,7 +21,7 @@ function Connect-OimPSModule {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
-    [string]$ConfigDir,
+    [string]$DMConfigDir,
 
     [Parameter(Mandatory)]
     [string]$DMDll
@@ -35,7 +35,7 @@ function Connect-OimPSModule {
     Import-Module "C:\Users\aiuser\Desktop\DeploymentManager-4.0.6-beta\Intragen.Deployment.OneIdentity.dll"
     #Import-Module $DMDll
     Invoke-QDeploy -Console -DeploymentPath C:\DMWorkshop2\Config\Example
-    #Invoke-QDeploy -Console -DeploymentPath $ConfigDir
+    #Invoke-QDeploy -Console -DeploymentPath $DMConfigDir
     $session = Get-QSession -default 
     
     return $session

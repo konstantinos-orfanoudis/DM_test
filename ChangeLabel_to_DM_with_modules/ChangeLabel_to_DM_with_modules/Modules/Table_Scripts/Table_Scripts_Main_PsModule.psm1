@@ -23,7 +23,7 @@ function Table_Scripts_Main_PsModule{
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [ValidateNotNullOrEmpty()]
-  [string]$Path,
+  [string]$ZipPath,
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
@@ -31,7 +31,7 @@ param(
 
   
   [Parameter(Mandatory = $true)]
-  [string]$ConfigDir,
+  [string]$DMConfigDir,
 
   [Parameter(Mandatory = $true)]
   [string]$LogPath,
@@ -59,21 +59,21 @@ Import-Module (Join-Path $scriptDir "Table_Scripts_Exporter_PsModule.psm1") -For
   Write-Host ""
 
   # Step 1: Parse input XML
-  Write-Host "[1/5] Parsing input XML: $Path"
-  $scripts = Get-ScriptKeysFromChangeLabel -Path $Path 
+  Write-Host "[1/5] Parsing input XML: $ZipPath"
+  $scripts = Get-ScriptKeysFromChangeLabel -Path $ZipPath 
 
   Write-Host "scripts found: $($scripts.Count)" -ForegroundColor Cyan
 
     if ($scripts.Count -gt 0) {
         # Step 2: Login to API
         
-        $session = Connect-OimPSModule -ConfigDir $ConfigDir -DMDll $DMDll
+        $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
         Write-Host "Authentication successful"
         Write-Host ""
         $outDirScripts = Join-Path -Path $OutPath -ChildPath "Scripts"
         Write-ScriptsAsVbNetFiles -Scripts $scripts -OutDir $outDirScripts
     } else {
-      Write-Host "No scripts found in ChangeContent in: $Path" -ForegroundColor Yellow
+      Write-Host "No scripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
     }
 
 
