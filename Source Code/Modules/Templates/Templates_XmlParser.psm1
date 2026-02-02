@@ -82,6 +82,9 @@ function Get-TemplatesFromChangeContent {
     }
   }
 
+  # make templates unique
+  $templates = $templates | Sort-Object TableName, ColumnName, IsOverwritingTemplate, Content -Unique
+  
   return $templates
 }
 

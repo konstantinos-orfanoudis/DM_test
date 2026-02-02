@@ -28,8 +28,8 @@ function Write-TemplatesAsVbNetFiles {
     $uid_table = $pr["UID_DialogTable"]
     $columnName = $pr["ColumnName"]
     $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
-    $t = Find-QSql $wc -dict 
-    $TableName = $t["TableName"]
+    $t2 = Find-QSql $wc -dict 
+    $TableName = $t2["TableName"]
     Close-QSql
     $res = $TableName + "-" + $columnName
     $res = $res -replace '"', ''
