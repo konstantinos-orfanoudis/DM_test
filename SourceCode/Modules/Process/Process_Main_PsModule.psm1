@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Main script to export OIM Templates from TagData XML files.
+  Main script to export OIM Processes from TagData XML files.
 
 .DESCRIPTION
-  Orchestrates the extraction of Templates from OIM Transport XML files.
+  Orchestrates the extraction of Process/JobChain data from OIM Transport XML files.
 
 .PARAMETER Path
   Path to the input XML file (e.g., Transport TagData.xml).
@@ -21,10 +21,10 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  Templates_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  Process_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
 #>
 
-function Templates_Main_PsModule{
+function Process_Main_PsModule{
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [ValidateNotNullOrEmpty()]
@@ -40,7 +40,7 @@ param(
 
   [Parameter(Mandatory = $false)]
   [string]$LogPath = "",
-  
+
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$DMDll
@@ -48,41 +48,51 @@ param(
 
 #region Module Imports
 $scriptDir = $PSScriptRoot
-$parent = Split-Path -Parent $PSScriptRoot
+$modulesDir = Split-Path -Parent $PSScriptRoot
+$commonDir = Join-Path $modulesDir "Common"
 
 # Import all required modules
-Import-Module (Join-Path $scriptDir "Templates_XmlParser.psm1") -Force
-Import-Module (Join-Path $parent "PsModuleLogin.psm1") -Force
-Import-Module (Join-Path $scriptDir "Templates_Exporter_PsModule.psm1") -Force
+Import-Module (Join-Path $scriptDir "Export-Process.psm1") -Force
+Import-Module (Join-Path $scriptDir "Process_XmlParser.psm1") -Force
+Import-Module (Join-Path $commonDir "PsModuleLogin.psm1") -Force
 #endregion
 
 #region Main Execution
 try {
-  Write-Host "OIM Templates Export Tool" -ForegroundColor Cyan
+  Write-Host "OIM Process Export Tool" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
-  $templates = Get-TemplatesFromChangeContent -ZipPath $ZipPath
-  Write-Host "Found $($templates.Count) template(s)" -ForegroundColor Cyan
+  
+  # Step 2: Login to API
+  Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
+  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+  
+  # Get processes from the XML
+  $processes = GetAllProcessFromChangeLabel -ZipPath $ZipPath -Session $session
+  
+  Write-Host "Found $($processes.Count) process(es)" -ForegroundColor Cyan
+  Write-Host ""
 
-  if ($templates.Count -gt 0) {
-    # Step 2: Login to API
-    Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-    $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
-    Write-Host "Authentication successful"
-    Write-Host ""
-    
-    # Step 3: Export Templates
+  # Step 3: Export Process
+  if ($processes.Count -gt 0) {
     Write-Host "[3/3] Exporting to: $OutPath"
-    $outDirTemplates = Join-Path -Path $OutPath -ChildPath "Templates"
-    Write-TemplatesAsVbNetFiles -Templates $templates -OutDir $outDirTemplates
+    
+    foreach($pr in $processes){
+      $ProcessName = $pr.Name
+      $TableName = $pr.TableName
+      $ProcessOutPath = Join-Path $OutPath "$ProcessName.xml"
+      
+      Write-Host "  Exporting process: $ProcessName ($TableName)" -ForegroundColor Gray
+      Export-Process -Name $ProcessName -TableName $TableName -OutFilePath $ProcessOutPath
+    }
     
     Write-Host ""
     Write-Host "Export completed successfully!" -ForegroundColor Green
-  } 
+  }
   else {
-    Write-Host "No templates found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
+    Write-Host "No processes found in: $ZipPath" -ForegroundColor Yellow
   }
 }
 catch {
@@ -101,5 +111,5 @@ catch {
 
 # Export module members
 Export-ModuleMember -Function @(
-  'Templates_Main_PsModule'
+  'Process_Main_PsModule'
 )

@@ -14,16 +14,20 @@ This PowerShell tool extracts and processes One Identity Manager (OIM) Transport
 ChangeLabel_to_DM_with_modules/
 ├── MainPsModule.ps1                      # Main entry point
 ├── InputValidator.psm1                   # Configuration validation
-├── ExtractXMLFromZip.psm1               # ZIP extraction module
-├── PsModuleLogin.psm1                   # OIM connection module
+├── DmDoc.psm1                           # Deployment Manager document builder
 ├── config.json                          # Configuration file
 │
 └── Modules/
+    ├── Common/                          # Shared modules
+    │   ├── PsModuleLogin.psm1          # OIM connection module
+    │   └── ExtractXMLFromZip.psm1      # ZIP extraction module
+    │
     ├── DBObjects/
     │   ├── DBObjects_Main_PsModule.psm1
     │   ├── DBObjects_XmlParser.psm1
     │   ├── DBObjects_FilterColumnsPsModule.psm1
-    │   └── DBObjects_XmlExporter.psm1
+    │   ├── DBObjects_XmlExporter.psm1
+    │   └── DBObjects_CsvExporter.psm1
     │
     ├── Process/
     │   ├── Process_Main_PsModule.psm1
@@ -168,12 +172,12 @@ The tool creates the following structure in the output directory:
 ```
 OutPath/
 ├── DBObjects.xml              # Database objects export
+├── Processes/
+│   └── *.xml                  # Process/JobChain exports
 ├── Templates/
 │   └── *.vb                   # Template files
-├── Scripts/
-│   └── *.vb                   # Script files
-└── Processes/
-    └── *.xml                  # Process exports
+└── Scripts/
+    └── *.vb                   # Script files
 ```
 
 ## Troubleshooting

@@ -74,11 +74,12 @@ param(
 
 #region Module Imports
 $scriptDir = $PSScriptRoot
-$parent = Split-Path -Parent $PSScriptRoot
+$modulesDir = Split-Path -Parent $PSScriptRoot
+$commonDir = Join-Path $modulesDir "Common"
 
 # Import all required modules
 Import-Module (Join-Path $scriptDir "DBObjects_XmlParser.psm1") -Force
-Import-Module (Join-Path $parent "PsModuleLogin.psm1") -Force
+Import-Module (Join-Path $commonDir "PsModuleLogin.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_XmlExporter.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_CsvExporter.psm1") -Force
 Import-Module (Join-Path $scriptDir "DBObjects_FilterColumnsPsModule.psm1") -Force
@@ -105,7 +106,7 @@ try {
 
   # Step 2: Login to API
   Write-Host "[2/5] Opening session with DMConfigDir: $DMConfigDir"
-  $session = Connect-OimPSModule -ConfigDir $DMConfigDir -DMDll $DMDll
+  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
   Write-Host "Authentication successful"
   Write-Host ""
 
