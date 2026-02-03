@@ -7,6 +7,8 @@ function Get-TemplatesFromChangeContent {
   )
 
   if (-not (Test-Path -LiteralPath $ZipPath)) { 
+    $Logger = Get-Logger
+    $Logger.Info("File not found: $ZipPath" )
     throw "File not found: $ZipPath" 
   }
 
@@ -60,6 +62,8 @@ function Get-TemplatesFromChangeContent {
       if ($reOverwriteTrue.IsMatch($diff)) {
         $overwriteMap[$objectKey] = $true
         Write-Host "    Found IsOverwritingTemplate=True for: $tableName -> $columnName" -ForegroundColor Cyan
+        $Logger = Get-Logger
+        $Logger.Info("  Found IsOverwritingTemplate=True for: $tableName -> $columnName" )
         break
       }
     }

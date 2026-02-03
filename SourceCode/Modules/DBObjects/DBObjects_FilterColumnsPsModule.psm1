@@ -37,6 +37,8 @@ function Get-ColumnPermissionsPsModule {
     $allowedByTable = @{}
     foreach ($selectedTableName in $Tables) {
       Write-Host  $selectedTableName
+      $Logger = Get-Logger
+      $Logger.Info("The selectes Table:$selectedTableName")
       $selectedTables = $connection.Tables  | Where-Object { $_.TableName -eq $selectedTableName }
       Write-Host $selectedTables
 
@@ -55,6 +57,8 @@ function Get-ColumnPermissionsPsModule {
     return $allowedByTable
   }
   catch {
+    $Logger = Get-Logger
+    $Logger.Info("Failed to retrieve column permissions: $_")
     throw "Failed to retrieve column permissions: $_"
   }
 }

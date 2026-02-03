@@ -33,6 +33,8 @@ function Write-ScriptsAsVbNetFiles {
     [System.IO.File]::WriteAllText($filePath, $ScriptCode, $utf8NoBom)
 
     Write-Host "Wrote script: $filePath" -ForegroundColor Green
+    $Logger = Get-Logger
+    $Logger.Info("Wrote script: $filePath")
   }
 }
 

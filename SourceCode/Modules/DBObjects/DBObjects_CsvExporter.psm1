@@ -165,10 +165,16 @@ function Export-ToCsvMode {
     # Write XML to file (UTF-8 without BOM)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($tableXmlPath, $xmlString, $utf8NoBom)
-
+    $Logger = Get-Logger
+    $Logger.Info("Wrote schema XML: $tableXmlPath")
     Write-Host "Wrote schema XML: $tableXmlPath"
 
     if ($PreviewXml) {
+      $Logger = Get-Logger
+      $Logger.Info("--- XML Preview: $tableName ---")
+      $Logger.Info($xmlString)
+      $Logger.Info("--- End Preview ---")
+
       Write-Host ""
       Write-Host "--- XML Preview: $tableName ---"
       Write-Host $xmlString
@@ -217,9 +223,10 @@ function Export-ToCsvMode {
     # Write CSV to file (UTF-8 without BOM)
     $csvContent = $csvRows -join "`r`n"
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($tableCsvPath, $csvContent, $utf8NoBom)
-    
+    [System.IO.File]::WriteAllText($tableCsvPath, $csvContent, $utf8NoBom) 
     $rowCount = if ($objectsByTable.Contains($tableName)) { $objectsByTable[$tableName].Count } else { 0 }
+    $Logger = Get-Logger
+    $Logger.Info("Wrote data CSV: $tableCsvPath (Rows: $rowCount)")
     Write-Host "Wrote data CSV: $tableCsvPath (Rows: $rowCount)"
 
     #endregion

@@ -59,29 +59,31 @@ Import-Module (Join-Path $modulesDir "Process/Process_Main_PsModule.psm1") -Forc
 Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Scripts/Scripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $commonDir "ExtractXMLFromZip.psm1") -Force
-Import-Module (Join-Path $commonDir "NLogger.psm1") -Force
+Import-Module (Join-Path $scriptDir "NLogger.psm1") -Force
 Import-Module (Join-Path $scriptDir "InputValidator.psm1") -Force
 #endregion
 
 
-#$Logger = Get-Logger 
-#$Logger.Info("Paizei")
+$Logger = Get-Logger 
+
 
 
 #region Main Execution
 try {
+  
   Write-Host "=== OIM Export Tool ===" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 1: Extract XML files from ZIP
+  $Logger.Info("Extracting XML files from ZIP")
   Write-Host "[1/3] Extracting XML files from ZIP: $ZipPath" -ForegroundColor Yellow
   $xmlFiles = Resolve-TagDataXmlFromZip -ZipPath $ZipPath
+  $Logger.Info("Extracted $($xmlFiles.Count) XML file(s)")
   Write-Host "Extracted $($xmlFiles.Count) XML file(s)" -ForegroundColor Green
   Write-Host ""
 
   # Step 2: Validate and merge configuration
   Write-Host "[2/3] Validating configuration..." -ForegroundColor Yellow
-  
   # Build parameter hashtable - only include parameters that were actually passed or have values
   $validatorParams = @{}
   
@@ -120,6 +122,7 @@ try {
   Write-Host ""
 
   # Step 3: Process each XML file
+  $Logger.Info("Processing XML files...")
   Write-Host "[3/3] Processing XML files..." -ForegroundColor Yellow
   $fileCount = 0
   
@@ -130,6 +133,7 @@ try {
     
     Write-Host ""
     Write-Host "Processing file $fileCount of $($xmlFiles.Count): $relativePath" -ForegroundColor Cyan
+    $Logger.Info("Processing $fileCount file of ${$xmlFile}: $relativePath")
     
     try {
       # Build parameter hashtable - only include non-empty values
@@ -157,14 +161,19 @@ try {
       }
       
       # Process DBObjects
+      
       Write-Host "  - Extracting DBObjects..." -ForegroundColor Gray
       DBObjects_Main_PsModule @commonParams
       
+      
       # Process Processes
+      
       Write-Host "  - Extracting Processes..." -ForegroundColor Gray
       Process_Main_PsModule @commonParams
       
+      
       # Process Templates
+     
       Write-Host "  - Extracting Templates..." -ForegroundColor Gray
       Templates_Main_PsModule @commonParams
       
@@ -175,8 +184,12 @@ try {
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
     }
     catch {
+      $Logger = Get-Logger
+      $Logger.Info("  ✗ Error processing file: $relativePath")
+      $Logger.Info("    Error: $($_.Exception.Message)")
       Write-Host "  ✗ Error processing file: $relativePath" -ForegroundColor Red
       Write-Host "    Error: $($_.Exception.Message)" -ForegroundColor Red
+     
       # Continue processing other files
     }
   }
@@ -190,6 +203,9 @@ catch {
   Write-Host ""
   Write-Host "=== FATAL ERROR ===" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
+   $Logger = Get-Logger
+   $Logger.Info("=== FATAL ERROR ===")
+   $Logger.Info($_.Exception.Message)
   if ($_.ScriptStackTrace) {
     Write-Host ""
     Write-Host "Stack Trace:" -ForegroundColor Yellow
@@ -202,6 +218,8 @@ finally {
   if ($xmlFiles) {
     foreach ($xmlFile in $xmlFiles) {
       if ($xmlFile.TempDir -and (Test-Path -LiteralPath $xmlFile.TempDir)) {
+        $Logger = Get-Logger
+        $Logger.Info("Cleaning up temp directory: $($xmlFile.TempDir)")
         Write-Verbose "Cleaning up temp directory: $($xmlFile.TempDir)"
         Remove-Item -LiteralPath $xmlFile.TempDir -Recurse -Force -ErrorAction SilentlyContinue
       }
