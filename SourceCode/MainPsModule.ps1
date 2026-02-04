@@ -58,6 +58,8 @@ Import-Module (Join-Path $modulesDir "DBObjects/DBObjects_Main_PsModule.psm1") -
 Import-Module (Join-Path $modulesDir "Process/Process_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "Scripts/Scripts_Main_PsModule.psm1") -Force
+Import-Module (Join-Path $modulesDir "TableScripts/TableScripts_Main_PsModule.psm1") -Force
+Import-Module (Join-Path $modulesDir "FormatScripts/FormatScripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $commonDir "ExtractXMLFromZip.psm1") -Force
 Import-Module (Join-Path $scriptDir "NLogger.psm1") -Force
 Import-Module (Join-Path $scriptDir "InputValidator.psm1") -Force
@@ -181,6 +183,16 @@ try {
       Write-Host "  - Extracting Scripts..." -ForegroundColor Gray
       Scripts_Main_PsModule @commonParams
       
+      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
+
+      # Table Scripts
+      Write-Host "  - Extracting Table Scripts..." -ForegroundColor Gray
+      TableScripts_Main_PsModule @commonParams
+      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
+
+      # Table Scripts
+      Write-Host "  - Extracting Format Scripts..." -ForegroundColor Gray
+      FormatScripts_Main_PsModule @commonParams
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
     }
     catch {
