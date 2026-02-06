@@ -7,8 +7,6 @@ function Get-TemplatesFromChangeContent {
   )
 
   if (-not (Test-Path -LiteralPath $ZipPath)) { 
-    $Logger = Get-Logger
-    $Logger.Info("File not found: $ZipPath" )
     throw "File not found: $ZipPath" 
   }
 
@@ -62,8 +60,6 @@ function Get-TemplatesFromChangeContent {
       if ($reOverwriteTrue.IsMatch($diff)) {
         $overwriteMap[$objectKey] = $true
         Write-Host "    Found IsOverwritingTemplate=True for: $tableName -> $columnName" -ForegroundColor Cyan
-        $Logger = Get-Logger
-        $Logger.Info("  Found IsOverwritingTemplate=True for: $tableName -> $columnName" )
         break
       }
     }
@@ -105,9 +101,7 @@ function Get-TemplatesFromChangeContent {
         # VB file content = inner Template Op <Value>...</Value>
         $vbContent = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
 
-        Write-Host "Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)" -ForegroundColor Gray
-     
-       # $Logger.info("Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)")
+        Write-Host "    Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)" -ForegroundColor Gray
         
         $templates.Add([pscustomobject]@{
           TableName             = $tableName
@@ -119,10 +113,7 @@ function Get-TemplatesFromChangeContent {
     }
   }
   $templates = $templates | Sort-Object TableName, ColumnName, IsOverwritingTemplate, Content -Unique
-  #$Logger = Get-Logger
-  #foreach ($t in $Templates) {
-  #$Logger.info("Found template for: $t.TableName -> $t.ColumnName (Overwrite: t.$IsOverwritingTemplate)")
-  #}
+
   return $templates
 }
 

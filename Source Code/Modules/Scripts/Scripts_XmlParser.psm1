@@ -9,9 +9,8 @@ function Get-ScriptKeysFromChangeLabel {
     [ValidateNotNullOrWhiteSpace()]
     [string]$TypeName = "DialogScript"   # the <T> value to match
   )
-  $Logger = Get-Logger
+
   if (-not (Test-Path -LiteralPath $ZipPath)) {
-    $Logger.Info("File not found: $ZipPath")
     throw "File not found: $ZipPath"
   }
 

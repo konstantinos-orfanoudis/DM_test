@@ -142,14 +142,8 @@ function Export-ToNormalXml {
   [System.IO.File]::WriteAllText($outFile, $xmlString, $utf8NoBom)
 
   Write-Host "Wrote XML: $outFile"
-  $Logger = Get-Logger
-  $Logger.Info("Wrote XML: $outFile")
 
   if ($PreviewXml) {
-    $Logger = Get-Logger
-    $Logger.Info("--- XML Preview ---")
-    $Logger.Info("$xmlString")
-    $Logger.Info("--- End Preview ---")
     Write-Host ""
     Write-Host "--- XML Preview ---"
     Write-Host $xmlString
