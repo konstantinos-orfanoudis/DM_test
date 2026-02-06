@@ -180,5 +180,7 @@ function Get-ConfigPropValue {
 
 # Export module members
 Export-ModuleMember -Function @(
-  'InputValidator'
+  'InputValidator',
+  'Get-ConfigPropValue'
 )
+

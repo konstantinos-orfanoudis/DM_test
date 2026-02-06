@@ -26,6 +26,10 @@ function Write-ScriptsAsVbNetFiles {
     $pr = Find-QSql $wc -dict 
     $ScriptCode = $pr["ScriptCode"]
     $ScriptName = $pr["ScriptName"]
+    $Logger = Get-Logger
+    $Logger.info("The UID_DialogColumn found is: $s")
+    $Logger.info("The ScriptCode Found is:  $ScriptCode")
+    $Logger.info("ScriptName found is: $ScriptName")
     Close-QSql
     
     $fileName = "-" + $ScriptName +".vb"
@@ -33,6 +37,8 @@ function Write-ScriptsAsVbNetFiles {
     [System.IO.File]::WriteAllText($filePath, $ScriptCode, $utf8NoBom)
 
     Write-Host "Wrote script: $filePath" -ForegroundColor Green
+    $Logger = Get-Logger
+    $Logger.Info("Wrote script: $filePath")
   }
 }
 

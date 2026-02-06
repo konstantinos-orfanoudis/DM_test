@@ -128,6 +128,8 @@ function Get-AllDbObjectsFromChangeContent {
       $innerDoc = Try-LoadEmbeddedXml -EmbeddedText $rawXml
     }
     catch {
+      $Logger = Get-Logger
+      $Logger.Info("Failed to parse embedded XML in ChangeContent: $_")
       Write-Warning "Failed to parse embedded XML in ChangeContent: $_"
       continue
     }

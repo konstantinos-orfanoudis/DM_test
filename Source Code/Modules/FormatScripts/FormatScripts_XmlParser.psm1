@@ -1,4 +1,4 @@
-function Get-ScriptKeysFromChangeLabel {
+function Get-FormatScriptKeysFromChangeLabel {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
@@ -7,11 +7,11 @@ function Get-ScriptKeysFromChangeLabel {
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrWhiteSpace()]
-    [string]$TypeName = "DialogScript"   # the <T> value to match
+    [string]$TypeName = "DialogColumn"   # the <T> value to match
   )
-  $Logger = Get-Logger
+  
   if (-not (Test-Path -LiteralPath $ZipPath)) {
-    $Logger.Info("File not found: $ZipPath")
+    
     throw "File not found: $ZipPath"
   }
 
@@ -28,17 +28,24 @@ function Get-ScriptKeysFromChangeLabel {
   $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
   $keys = New-Object 'System.Collections.Generic.List[string]'
 
-  foreach ($m in [regex]::Matches($text, $pattern)) {
+$dbObjectPattern = '(?is)<DbObject\b.*?>.*?</DbObject>'
+$pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
+
+foreach ($db in [regex]::Matches($text, $dbObjectPattern)) {
+  $dbText = $db.Value
+  if ($dbText -notmatch 'Columnname\s*=\s*"FormatScript"') { continue }
+
+  foreach ($m in [regex]::Matches($dbText, $pattern)) {
     $k = $m.Groups['p'].Value.Trim()
-    if ($k -and $seen.Add($k)) {
-      [void]$keys.Add($k)
-    }
+    if ($k -and $seen.Add($k)) { [void]$keys.Add($k) }
   }
+}
 
   return $keys
+  
 }
 
 # Export module members
 Export-ModuleMember -Function @(
-  'Get-ScriptKeysFromChangeLabel'
+  'Get-FormatScriptKeysFromChangeLabel'
 )
