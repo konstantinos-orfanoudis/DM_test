@@ -105,7 +105,9 @@ function Get-TemplatesFromChangeContent {
         # VB file content = inner Template Op <Value>...</Value>
         $vbContent = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
 
-        Write-Host "    Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)" -ForegroundColor Gray
+        Write-Host "Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)" -ForegroundColor Gray
+     
+       # $Logger.info("Found template for: $tableName -> $columnName (Overwrite: $isOverwrite)")
         
         $templates.Add([pscustomobject]@{
           TableName             = $tableName
@@ -117,7 +119,10 @@ function Get-TemplatesFromChangeContent {
     }
   }
   $templates = $templates | Sort-Object TableName, ColumnName, IsOverwritingTemplate, Content -Unique
-
+  #$Logger = Get-Logger
+  #foreach ($t in $Templates) {
+  #$Logger.info("Found template for: $t.TableName -> $t.ColumnName (Overwrite: t.$IsOverwritingTemplate)")
+  #}
   return $templates
 }
 

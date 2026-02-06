@@ -21,6 +21,10 @@ function Get-DialogTableScriptsFromChangeLabel {
   for ($i = 0; $i -lt 3; $i++) {
     $text = [System.Net.WebUtility]::HtmlDecode($text)
   }
+  # If this change label contains Template column changes, treat it as Templates
+  # and do not parse table scripts from it.
+ 
+
 
   # 1) Iterate DbObject blocks
   $dbObjectPattern = '(?is)<DbObject\b[^>]*>.*?</DbObject>'
@@ -36,6 +40,10 @@ function Get-DialogTableScriptsFromChangeLabel {
 
   # 3) Check ChangeContent for each script column Op Columnname="..."
   $changeContentBase = '(?is)<Column\b[^>]*\bName\s*=\s*"(?:ChangeContent)"[^>]*>.*?'
+  
+  #$changeContentBase = '(?is)<Column\b(?:(?!</Column>).)*?\bName\s*=\s*"ChangeContent"\b(?:(?!</Column>).)*?>\s*(?:<Value>)?(?<cc>.*?)(?:</Value>)?\s*</Column>'
+
+
   function Test-HasOpColumn {
     param(
       [Parameter(Mandatory)][string]$DbObjectBlock,
@@ -54,6 +62,8 @@ function Get-DialogTableScriptsFromChangeLabel {
   foreach ($dbo in [regex]::Matches($text, $dbObjectPattern)) {
     $block = $dbo.Value
 
+
+
     # Extract DialogTable key (P value) => UID_DialogTable
     $mKey = [regex]::Match($block, $objectKeyPattern)
     if (-not $mKey.Success) { continue }
@@ -68,7 +78,7 @@ function Get-DialogTableScriptsFromChangeLabel {
     $onDiscarding = Test-HasOpColumn -DbObjectBlock $block -ColumnName 'OnDiscardingScript'
 
     # Keep ONLY if at least one of the script columns is present
-    if (-not ($onSaving -or $onSaved -or $onLoaded -or $onDiscarded -or $onDiscarding)) {
+    if (-not ($onSaving -or $onSaved -or $onLoaded -or $onDiscarded -or $onDiscarding)){
       continue
     }
 

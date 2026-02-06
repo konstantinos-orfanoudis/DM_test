@@ -21,11 +21,9 @@ function global:Get-Logger() {
 
   $configPath = Join-Path $PSScriptRoot 'config.json'
   $config = Get-Content $configPath -Raw | ConvertFrom-Json
-  $LogPath = [string]$config.LogPath
-  write-host " $LogPath!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  $LogPath = [string]$config.LogPath  
   $FinalLogPath = $LogPath + "\ultimo_log.log"
-  write-host "$FinalLogPath !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-   $ArchiveLogPath = $LogPath + "\ultimo_log"
+  $ArchiveLogPath = $LogPath + "\ultimo_log"
  
 
 

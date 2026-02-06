@@ -60,6 +60,8 @@ Import-Module (Join-Path $modulesDir "Templates/Templates_Main_PsModule.psm1") -
 Import-Module (Join-Path $modulesDir "Scripts/Scripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "TableScripts/TableScripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $modulesDir "FormatScripts/FormatScripts_Main_PsModule.psm1") -Force
+Import-Module (Join-Path $modulesDir "CanSeeScripts/CanSeeScripts_Main_PsModule.psm1") -Force
+Import-Module (Join-Path $modulesDir "CanEditScripts/CanEditScripts_Main_PsModule.psm1") -Force
 Import-Module (Join-Path $commonDir "ExtractXMLFromZip.psm1") -Force
 Import-Module (Join-Path $scriptDir "NLogger.psm1") -Force
 Import-Module (Join-Path $scriptDir "InputValidator.psm1") -Force
@@ -185,14 +187,24 @@ try {
       
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
-      # Table Scripts
+      # Process Table Scripts
       Write-Host "  - Extracting Table Scripts..." -ForegroundColor Gray
       TableScripts_Main_PsModule @commonParams
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
-      # Table Scripts
+      # Process Format Scripts
       Write-Host "  - Extracting Format Scripts..." -ForegroundColor Gray
       FormatScripts_Main_PsModule @commonParams
+      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
+
+      # Process CanSee Scripts
+      Write-Host "  - Extracting Format CanSee Scripts..." -ForegroundColor Gray
+      CanSeeScripts_Main_PsModule @commonParams
+      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
+
+      # Process CanEdit Scripts
+      Write-Host "  - Extracting Format CanSee Scripts..." -ForegroundColor Gray
+      CanEditScripts_Main_PsModule @commonParams
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
     }
     catch {

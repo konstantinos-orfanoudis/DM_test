@@ -1,7 +1,7 @@
-function Write-FormatScriptsAsVbNetFiles {
+function Write-CanSeeScriptsAsVbNetFiles {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)][object[]]$Scripts,
+    [Parameter(Mandatory)][object[]]$CanSeeScripts,
     [Parameter(Mandatory)][string]$OutDir
   )
 
@@ -20,14 +20,14 @@ function Write-FormatScriptsAsVbNetFiles {
 
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
-  foreach ($s in $Scripts) {
+  foreach ($s in $CanSeeScripts) {
     $o = Open-QSql
-    $wc = "select ColumnName, FormatScript , UID_DialogTable  from DialogColumn where UID_DialogColumn = '$s'"
+    $wc = "select ColumnName, CanSeeScript , UID_DialogTable  from DialogColumn where UID_DialogColumn = '$s'"
     $pr = Find-QSql $wc -dict 
     $ColumnName = $pr["ColumnName"]
     write-host  $ColumnName
-    $FormatScript = $pr["FormatScript"]
-    write-host $FormatScript
+    $CanSeeScript = $pr["CanSeeScript"]
+    write-host $CanSeeScript
     $UID_DialogTable = $pr["UID_DialogTable"]
     write-host $UID_DialogTable
     $wc = "select TableName from DialogTable where UID_DialogTable = '$UID_DialogTable'"
@@ -37,22 +37,20 @@ function Write-FormatScriptsAsVbNetFiles {
     $Logger = Get-Logger
     $Logger.info("The UID_DialogColumn found is: $s")
     $Logger.info("UID_DialogTable found is: $UID_DialogTable")
-    $Logger.info("The table found is: $TableName")
+    $Logger.info("The Table found is: $TableName")
     $Logger = Get-Logger
     $Logger.info("The ColumnName Found is:  $ColumnName")
-    $Logger.info("The FormatScript is: $FormatScript")
-    
-
-
+    $Logger.info("The CanSeeScript found is: $CanSeeScript")
     Close-QSql
     
-    $fileName = "-FormatScript_" + $TableName +"-"+$ColumnName+".vb"   
+    $fileName = "-CanSeeScript_" + $TableName +"-"+$ColumnName+".vb"
     $filePath = Join-Path $OutDir $fileName
-    [System.IO.File]::WriteAllText($filePath, $FormatScript, $utf8NoBom)
+    [System.IO.File]::WriteAllText($filePath, $CanSeeScript, $utf8NoBom)
+
     Write-Host "Wrote  Format script: $filePath" -ForegroundColor Green
     $Logger = Get-Logger
     $Logger.Info("Wrote script: $filePath")
   }
 }
 
-Export-ModuleMember -Function @('Write-FormatScriptsAsVbNetFiles')
+Export-ModuleMember -Function @('Write-CanSeeScriptsAsVbNetFiles')

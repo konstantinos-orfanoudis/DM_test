@@ -55,41 +55,59 @@ Import-Module (Join-Path $scriptDir "FormatScripts_Exporter_PsModule.psm1") -For
 
 #region Main Execution
 try {
+  $Logger = Get-Logger
+  $Logger.info("OIM Format Scripts Export Tool")
   Write-Host "OIM Format Scripts Export Tool" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
+  $Logger.info("Parsing input XML: $ZipPath")
   $scripts = Get-FormatScriptKeysFromChangeLabel -ZipPath $ZipPath
 
   Write-Host "Found $($scripts.Count) Format script(s)" -ForegroundColor Cyan
+  $Logger.info("Found $($scripts.Count) Format script(s)")
 
   if ($scripts.Count -gt 0) {
 
     # Step 2: Login (kept for parity / future use)
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
+    $Logger = Get-Logger
+    $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+    $Logger = Get-Logger
+    $Logger.info("Authentication successful")
     Write-Host "Authentication successful"
     Write-Host ""
 
     # Step 3: Export formatted scripts
     Write-Host "[3/3] Exporting formatted scripts to: $OutPath"
+    $Logger.info("Exporting formatted scripts to: $OutPath")
     $outDirScripts = Join-Path -Path $OutPath -ChildPath "FormatScripts"
     Write-FormatScriptsAsVbNetFiles -Scripts $scripts -OutDir $outDirScripts
 
     Write-Host ""
     Write-Host "Export completed successfully!" -ForegroundColor Green
+    $Logger.info("Export completed successfully!")
   }
   else {
+    $Logger = Get-Logger
+    $Logger.info("No scripts found in ChangeContent in: $ZipPath")
     Write-Host "No scripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
   }
 }
 catch {
+  $Logger = Get-Logger
+  $Logger.info("ERROR: Export failed!")
+  Logger.info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
 
   if ($_.ScriptStackTrace) {
+    $Logger = Get-Logger
+    $Logger.info("Stack Trace:")
+    $Logger.info($_.ScriptStackTrace)
     Write-Host ""
     Write-Host "Stack Trace:" -ForegroundColor Yellow
     Write-Host $_.ScriptStackTrace -ForegroundColor Yellow

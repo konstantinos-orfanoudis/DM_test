@@ -61,6 +61,7 @@ Import-Module (Join-Path $scriptDir "Templates_Exporter_PsModule.psm1") -Force
 $Logger = Get-Logger
 
 try {
+  $Logger.info("OIM Templates Export Tool")
   Write-Host "OIM Templates Export Tool" -ForegroundColor Cyan
   Write-Host ""
 

@@ -4,7 +4,8 @@ function Write-TableScriptsAsVbNetFiles {
     [Parameter(Mandatory)][object[]]$Scripts,
     [Parameter(Mandatory)][string]$OutDir
   )
-
+  
+  
   if (-not (Test-Path -LiteralPath $OutDir)) {
     New-Item -ItemType Directory -Path $OutDir | Out-Null
   }
@@ -39,6 +40,8 @@ function Write-TableScriptsAsVbNetFiles {
        [System.IO.File]::WriteAllText($filePath, $OnSavingScript, $utf8NoBom)
 
       Write-Host "Wrote OnSavingScript: $filePath" -ForegroundColor Green
+      $Logger = Get-Logger
+      $Logger.Info("Wrote OnSavingScript: $filePath")
     }
 
     If($s.OnSavedScript){
@@ -47,6 +50,7 @@ function Write-TableScriptsAsVbNetFiles {
        [System.IO.File]::WriteAllText($filePath, $OnSavedScript, $utf8NoBom)
 
       Write-Host "Wrote OnSavedScript: $filePath" -ForegroundColor Green
+      $Logger.Info("Wrote OnSavedScript: $filePath")
     }
 
     If($s.OnLoadedScript){
@@ -55,6 +59,8 @@ function Write-TableScriptsAsVbNetFiles {
        [System.IO.File]::WriteAllText($filePath, $OnLoadedScript, $utf8NoBom)
 
       Write-Host "Wrote OnLoadedScript: $filePath" -ForegroundColor Green
+      $Logger = Get-Logger
+      $Logger.info("Wrote OnLoadedScript: $filePath")
     }
 
     If($s.OnDiscardedScript){
@@ -63,6 +69,8 @@ function Write-TableScriptsAsVbNetFiles {
        [System.IO.File]::WriteAllText($filePath, $OnDiscardedScript, $utf8NoBom)
 
       Write-Host "Wrote OnDiscardedScript: $filePath" -ForegroundColor Green
+      $Logger = Get-Logger
+      $Logger.info("Wrote OnDiscardedScript: $filePath")
     }
 
     If($s.OnDiscardingScript){
@@ -71,6 +79,8 @@ function Write-TableScriptsAsVbNetFiles {
        [System.IO.File]::WriteAllText($filePath, $OnDiscardingScript, $utf8NoBom)
 
       Write-Host "Wrote OnDiscardingScript: $filePath" -ForegroundColor Green
+       $Logger = Get-Logger
+       $Logger.info("Wrote OnDiscardingScript: $filePath")
     }
 
     
