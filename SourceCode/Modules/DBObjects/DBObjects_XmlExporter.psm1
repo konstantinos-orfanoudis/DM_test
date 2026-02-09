@@ -143,13 +143,13 @@ function Export-ToNormalXml {
 
   Write-Host "Wrote XML: $outFile"
   $Logger = Get-Logger
-  $Logger.Info("Wrote XML: $outFile")
+  $Logger.info("Wrote XML: $outFile")
 
   if ($PreviewXml) {
     $Logger = Get-Logger
-    $Logger.Info("--- XML Preview ---")
-    $Logger.Info("$xmlString")
-    $Logger.Info("--- End Preview ---")
+    $Logger.info("--- XML Preview ---")
+    $Logger.info($xmlString)
+    $Logger.info("--- End Preview ---")
     Write-Host ""
     Write-Host "--- XML Preview ---"
     Write-Host $xmlString

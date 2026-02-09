@@ -92,6 +92,8 @@ function Get-AllDbObjectsFromChangeContent {
   )
 
   if (-not (Test-Path -LiteralPath $ZipPath)) {
+    $Logger = Get-Logger
+    $Logger.info("File not found: $ZipPath")
     throw "File not found: $ZipPath"
   }
 
@@ -129,7 +131,7 @@ function Get-AllDbObjectsFromChangeContent {
     }
     catch {
       $Logger = Get-Logger
-      $Logger.Info("Failed to parse embedded XML in ChangeContent: $_")
+      $Logger.info("Failed to parse embedded XML in ChangeContent: $_")
       Write-Warning "Failed to parse embedded XML in ChangeContent: $_"
       continue
     }

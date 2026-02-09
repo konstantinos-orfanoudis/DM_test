@@ -43,7 +43,10 @@ param(
   
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$DMDll
+  [string]$DMDll,
+  
+  [Parameter(Mandatory = $false)]
+  [switch]$CSVMode
 )
 
 #region Module Imports

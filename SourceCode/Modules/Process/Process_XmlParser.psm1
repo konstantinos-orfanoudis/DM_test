@@ -126,7 +126,22 @@ function GetAllProcessFromChangeLabel {
     }
   }
 
-  return $results
+  # Deduplicate by process name (same process found multiple times due to multiple Job steps)
+  $uniqueProcesses = @{}
+  foreach ($result in $results) {
+    $key = "$($result.TableName):$($result.Name)"
+    if (-not $uniqueProcesses.ContainsKey($key)) {
+      $uniqueProcesses[$key] = $result
+    }
+  }
+
+  # Convert hashtable values to list
+  $finalResults = New-Object System.Collections.Generic.List[object]
+  foreach ($proc in $uniqueProcesses.Values) {
+    $finalResults.Add($proc)
+  }
+  
+  return $finalResults
 }
 
 Export-ModuleMember -Function GetAllProcessFromChangeLabel

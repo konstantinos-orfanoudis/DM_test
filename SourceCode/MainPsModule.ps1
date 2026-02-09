@@ -203,7 +203,7 @@ try {
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
       # Process CanEdit Scripts
-      Write-Host "  - Extracting Format CanSee Scripts..." -ForegroundColor Gray
+      Write-Host "  - Extracting Format CanEdit Scripts..." -ForegroundColor Gray
       CanEditScripts_Main_PsModule @commonParams
       Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
     }
