@@ -19,7 +19,7 @@ function Write-CanSeeScriptsAsVbNetFiles {
   }
 
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
+  $counter = 0
   foreach ($s in $CanSeeScripts) {
     $o = Open-QSql
     $wc = "select ColumnName, CanSeeScript , UID_DialogTable  from DialogColumn where UID_DialogColumn = '$s'"
@@ -43,13 +43,15 @@ function Write-CanSeeScriptsAsVbNetFiles {
     $Logger.info("The CanSeeScript found is: $CanSeeScript")
     Close-QSql
     
-    $fileName = "-CanSeeScript_" + $TableName +"-"+$ColumnName+".vb"
+    $fileName = "CanSeeScript_" + $TableName +"-"+$ColumnName+".vb"
+    $fileName = ('{0:D3}-{1}' -f ($counter + 1), $fileName)
     $filePath = Join-Path $OutDir $fileName
     [System.IO.File]::WriteAllText($filePath, $CanSeeScript, $utf8NoBom)
 
     Write-Host "Wrote  Format script: $filePath" -ForegroundColor Green
     $Logger = Get-Logger
     $Logger.Info("Wrote script: $filePath")
+    $counter = $counter + 1
   }
 }
 
