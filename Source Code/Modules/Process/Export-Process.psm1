@@ -36,9 +36,13 @@ $dm = [DmDoc]::new()
 
 $oimJobChain = Find-QObject JobChain ("Name=N'{0}' and UID_DialogTable=(select UID_DialogTable from DialogTable where TableName=N'{1}')" -f $Name,$TableName)
 if(!$oimJobChain) {
+    $Logger = Get-Logger
+    $Logger.info("Name=N'{0}' and UID_DialogTable=(select UID_DialogTable from DialogTable where TableName=N'{1}')" -f $Name,$TableName)
     throw ("JobChain {0}.{1} not found" -f $TableName,$Name)
 }
 if($oimJobChain.Length -gt 1) {
+    $Logger = Get-Logger
+    $Logger.info("JobChain {0}.{1} not unique!" -f $TableName,$Name)
     throw ("JobChain {0}.{1} not unique!" -f $TableName,$Name)
 }
 
@@ -180,6 +184,7 @@ $oimJobChain |% {
 
     $dm.AddObjDef($jc)
 }
+
 
 $dm.ToXml($OutFilePath)
 }

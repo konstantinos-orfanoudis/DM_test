@@ -198,8 +198,14 @@ function Export-ToCsvMode {
     [System.IO.File]::WriteAllText($tableXmlPath, $xmlString, $utf8NoBom)
 
     Write-Host "Wrote schema XML: $tableXmlPath"
+    $Logger = Get-logger
+    $Logger.info("Wrote schema XML: $tableXmlPath")
 
     if ($PreviewXml) {
+      $Logger = Get-Logger
+      $Logger.info("--- XML Preview: $tableName ---")
+      $Logger.info($xmlString)
+      $Logger.info("--- End Preview ---")
       Write-Host ""
       Write-Host "--- XML Preview: $tableName ---"
       Write-Host $xmlString
@@ -252,6 +258,8 @@ function Export-ToCsvMode {
     
     $rowCount = if ($objectsByTable.Contains($tableName)) { $objectsByTable[$tableName].Count } else { 0 }
     Write-Host "Wrote data CSV: $tableCsvPath (Rows: $rowCount)"
+    $Logger = Get-logger
+    $Logger.info("Wrote data CSV: $tableCsvPath (Rows: $rowCount)")
 
     #endregion
   }

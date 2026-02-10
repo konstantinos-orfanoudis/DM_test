@@ -19,7 +19,7 @@ function Write-FormatScriptsAsVbNetFiles {
   }
 
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
+  $counter = 0
   foreach ($s in $Scripts) {
     $o = Open-QSql
     $wc = "select ColumnName, FormatScript , UID_DialogTable  from DialogColumn where UID_DialogColumn = '$s'"
@@ -42,16 +42,15 @@ function Write-FormatScriptsAsVbNetFiles {
     $Logger.info("The ColumnName Found is:  $ColumnName")
     $Logger.info("The FormatScript is: $FormatScript")
     
-
-
-    Close-QSql
-    
-    $fileName = "-FormatScript_" + $TableName +"-"+$ColumnName+".vb"   
+    Close-QSql    
+    $fileName = "FormatScript_" + $TableName +"-"+$ColumnName+".vb"
+    $fileName = ('{0:D3}-{1}' -f ($counter + 1), $fileName)   
     $filePath = Join-Path $OutDir $fileName
     [System.IO.File]::WriteAllText($filePath, $FormatScript, $utf8NoBom)
     Write-Host "Wrote  Format script: $filePath" -ForegroundColor Green
     $Logger = Get-Logger
     $Logger.Info("Wrote script: $filePath")
+    $counter = $counter + 1
   }
 }
 

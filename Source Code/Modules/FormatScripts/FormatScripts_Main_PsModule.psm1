@@ -40,7 +40,13 @@ param(
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$DMDll
+  [string]$DMDll,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$CSVMode,
+
+  [Parameter(Mandatory = $false)]
+  [string]$DMPassword = ""
 )
 
 #region Module Imports
@@ -74,7 +80,7 @@ try {
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
     $Logger = Get-Logger
     $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
-    $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+    $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
     $Logger = Get-Logger
     $Logger.info("Authentication successful")
     Write-Host "Authentication successful"

@@ -41,6 +41,9 @@ function Write-TemplatesAsVbNetFiles {
     [System.IO.File]::WriteAllText($filePath, [string]$t.Content, $utf8NoBom)
 
     Write-Host "Wrote template: $filePath" -ForegroundColor Green
+    $Logger = Get-Logger
+    $Logger.Info("Wrote template: $filePath")
+    
   }
 }
 

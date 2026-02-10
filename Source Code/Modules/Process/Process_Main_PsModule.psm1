@@ -41,9 +41,15 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$LogPath = "",
 
+  [Parameter(Mandatory = $false)]
+  [switch]$CSVMode,
+
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$DMDll
+  [string]$DMDll,
+
+  [Parameter(Mandatory = $false)]
+  [string]$DMPassword = ""
 )
 
 #region Module Imports
@@ -59,47 +65,67 @@ Import-Module (Join-Path $commonDir "PsModuleLogin.psm1") -Force
 
 #region Main Execution
 try {
+  $Logger = Get-Logger
+  $Logger.info("OIM Process Export Tool")
   Write-Host "OIM Process Export Tool" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
+  $Logger.info("Parsing input XML: $ZipPath")
   
   # Step 2: Login to API
   Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+  $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
+  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
   
   # Get processes from the XML
   $processes = GetAllProcessFromChangeLabel -ZipPath $ZipPath -Session $session
-  
+  $Logger = Get-Logger
+  $Logger.info("Found $($processes.Count) process(es)")
   Write-Host "Found $($processes.Count) process(es)" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 3: Export Process
   if ($processes.Count -gt 0) {
-    Write-Host "[3/3] Exporting to: $OutPath"
+    
     
     foreach($pr in $processes){
       $ProcessName = $pr.Name
       $TableName = $pr.TableName
-      $ProcessOutPath = Join-Path $OutPath "$ProcessName.xml"
-      
+      $outpathfolder = "$OutPath"+"\Processes"  
+      if (-not (Test-Path $outpathfolder)) {
+          New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
+      }
+      $ProcessOutPath = Join-Path  $outpathfolder "$ProcessName.xml"    
       Write-Host "  Exporting process: $ProcessName ($TableName)" -ForegroundColor Gray
+      $Logger.info("Exporting process: $ProcessName ($TableName)")
       Export-Process -Name $ProcessName -TableName $TableName -OutFilePath $ProcessOutPath
     }
-    
+    $Logger = Get-Logger
+    $Logger.info("Exporting to: $outpathfolder")
+    Write-Host "[3/3] Exporting to: $outpathfolder"
     Write-Host ""
     Write-Host "Export completed successfully!" -ForegroundColor Green
+    $Logger.info("Export completed successfully!")
   }
   else {
+    $Logger = Get-Logger
+    $Logger.info("No processes found in: $ZipPath")
     Write-Host "No processes found in: $ZipPath" -ForegroundColor Yellow
   }
 }
 catch {
+  $Logger = Get-Logger
+  $Logger.info("ERROR: Export failed!")
+  $Logger.info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
   if ($_.ScriptStackTrace) {
+    $Logger = Get-Logger
+    $Logger.info("Stack Trace:")
+    $Logger.info($_.ScriptStackTrace)
     Write-Host ""
     Write-Host "Stack Trace:" -ForegroundColor Yellow
     Write-Host $_.ScriptStackTrace -ForegroundColor Yellow

@@ -1,4 +1,4 @@
-# OIM Export Tool - Complete Project
+# OIM Export Tool - Complete Guide
 
 ## Overview
 
@@ -8,18 +8,22 @@ This PowerShell tool extracts and processes One Identity Manager (OIM) Transport
 - Templates
 - Scripts
 
+**New in v2.2:** Encrypted password support for secure password storage in config.json
+
 ## Project Structure
 
 ```
 ChangeLabel_to_DM_with_modules/
 ├── MainPsModule.ps1                      # Main entry point
 ├── InputValidator.psm1                   # Configuration validation
+├── PasswordEncryption.psm1              # Password encryption/decryption
+├── Encrypt-Password.ps1                 # Helper script to encrypt passwords
 ├── DmDoc.psm1                           # Deployment Manager document builder
 ├── config.json                          # Configuration file
 │
 └── Modules/
     ├── Common/                          # Shared modules
-    │   ├── PsModuleLogin.psm1          # OIM connection module
+    │   ├── PsModuleLogin.psm1          # OIM connection module (with password support)
     │   └── ExtractXMLFromZip.psm1      # ZIP extraction module
     │
     ├── DBObjects/
@@ -55,9 +59,9 @@ ChangeLabel_to_DM_with_modules/
 
 ## Setup
 
-### 1. Extract the ZIP file
+### 1. Extract the Project
 
-Extract the complete_project.zip to your desired location:
+Extract the ZIP file to your desired location:
 ```
 C:\Users\OneIM\Desktop\Git\DM_test\ChangeLabel_to_DM_with_modules\
 ```
@@ -65,6 +69,8 @@ C:\Users\OneIM\Desktop\Git\DM_test\ChangeLabel_to_DM_with_modules\
 ### 2. Configure config.json
 
 Edit `config.json` with your paths:
+
+**Without Password (for unencrypted DM configurations):**
 
 ```json
 {
@@ -78,20 +84,212 @@ Edit `config.json` with your paths:
 }
 ```
 
-**Important:**
-- Use double backslashes `\\` in JSON
-- All paths must exist (except OutPath and LogPath, which will be created)
-- Field names are case-sensitive: `DMConfigDir`, `DMDll`
+**With Encrypted Password (for encrypted DM configurations):**
 
-### 3. Verify Paths
+```json
+{
+  "DMConfigDir": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Config\\Example",
+  "OutPath": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM",
+  "LogPath": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Logs\\export.log",
+  "DMDll": "C:\\Users\\OneIM\\Desktop\\DeploymentManager_4.0.6_beta\\Intragen.Deployment.OneIdentity.dll",
+  "DMPassword": "[E]01000000d08c9ddf0115d1118c7a00c04fc297eb...",
+  "IncludeEmptyValues": false,
+  "PreviewXml": false,
+  "CSVMode": false
+}
+```
+
+### 3. (Optional) Encrypt Your Password
+
+If your Deployment Manager configuration requires a password, you can encrypt it:
 
 ```powershell
-# Check if config directory exists
-Test-Path "C:\Users\OneIM\Desktop\Test_XMLtoDM\Config\Example"
+# Run the encryption helper script
+.\Encrypt-Password.ps1
 
-# Check if DM DLL exists
-Test-Path "C:\Users\OneIM\Desktop\DeploymentManager_4.0.6_beta\Intragen.Deployment.OneIdentity.dll"
+# Or provide password directly
+.\Encrypt-Password.ps1 -Password "YourPassword123"
 ```
+
+The script will output an encrypted password starting with `[E]` that you can copy to config.json.
+
+## Password Support for Encrypted Configurations
+
+When Deployment Manager configurations are password-protected, the tool can automatically handle password entry using encrypted passwords.
+
+### Why Use Encrypted Passwords?
+
+✅ **Security:**
+- Password is **encrypted** in config.json (not plain text)
+- Uses Windows DPAPI (Data Protection API)
+- Can commit config.json to Git safely (after encrypting password)
+
+✅ **Convenience:**
+- No manual password entry needed
+- Automated scripts work seamlessly
+- One-time setup per machine
+
+⚠️ **Machine-Specific:**
+- Encrypted on Machine A → Only works on Machine A
+- Encrypted by User1 → Only works for User1
+- Must re-encrypt on different machines/users
+
+### Three Ways to Provide Passwords
+
+#### Method 1: Encrypted in config.json (Recommended for Automation)
+
+**Step 1: Encrypt Your Password**
+
+```powershell
+.\Encrypt-Password.ps1
+# Enter password when prompted
+# Copy the encrypted output
+```
+
+**Step 2: Add to config.json**
+
+```json
+{
+  "DMPassword": "[E]01000000d08c9ddf0115d1118c7a00c04fc297eb01000000..."
+}
+```
+
+**Step 3: Run the tool**
+
+```powershell
+.\MainPsModule.ps1 -ZipPath "C:\path\to\transport.zip"
+```
+
+Expected output:
+```
+Decrypting encrypted password...
+✓ Password decrypted successfully
+✓ Connection established successfully
+```
+
+**Advantages:**
+- ✅ Password encrypted at rest
+- ✅ No manual password entry
+- ✅ Works in automated scripts
+- ✅ Can commit config.json (after encryption)
+
+**Limitations:**
+- ⚠️ Machine + user specific
+- ⚠️ Must re-encrypt on each target machine
+
+#### Method 2: Plain Text (Development Only - Not Recommended)
+
+**config.json:**
+
+```json
+{
+  "DMPassword": "PlainTextPassword"
+}
+```
+
+⚠️ **Warning:** This stores password in plain text!
+- Only use for development/testing
+- Never commit config.json with plain text passwords
+- Tool will warn you when using plain text passwords
+
+### Password Priority Order
+
+The tool checks for passwords in this order (highest to lowest):
+
+1. **CLI Parameter** - `.\MainPsModule.ps1 -DMPassword "..."`
+2. **config.json** - `"DMPassword": "..."`
+
+### How Encryption Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Encryption (One-Time Setup)                                 │
+├─────────────────────────────────────────────────────────────┤
+│ User runs: .\Encrypt-Password.ps1                           │
+│      ↓                                                      │
+│ Enter password: "MyPassword123"                            │
+│      ↓                                                      │
+│ ConvertTo-EncryptedBlock (Windows DPAPI)                   │
+│      ↓                                                      │
+│ Output: [E]01000000d08c9ddf0115d1118c7a00c04fc297eb...    │
+│      ↓                                                      │
+│ Copy to config.json                                         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Decryption (Every Run)                                      │
+├─────────────────────────────────────────────────────────────┤
+│ Tool reads config.json                                      │
+│      ↓                                                      │
+│ Detects [E] prefix → password is encrypted                 │
+│      ↓                                                      │
+│ ConvertFrom-EncryptedBlock (Windows DPAPI)                 │
+│      ↓                                                      │
+│ Plain text password (in memory only)                       │
+│      ↓                                                      │
+│ Pass to: Invoke-QDeploy -Password $plainPassword           │
+│      ↓                                                      │
+│ ✓ Connected!                                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Encryption for Different Environments
+
+**Development → Testing → Production:**
+
+```powershell
+# On Development Machine
+.\Encrypt-Password.ps1 -Password "DevPassword"
+# Copy to dev/config.json
+
+# On Testing Machine
+.\Encrypt-Password.ps1 -Password "TestPassword"
+# Copy to test/config.json
+
+# On Production Machine
+.\Encrypt-Password.ps1 -Password "ProdPassword"
+# Copy to prod/config.json
+```
+
+**Each environment has:**
+- ✅ Same password (logically)
+- ✅ Different encrypted strings (machine-specific)
+- ✅ Secure storage
+
+### Security Best Practices
+
+#### ✅ Do This
+
+1. **Encrypt Passwords**
+   ```powershell
+   # Always encrypt before storing
+   .\Encrypt-Password.ps1 -Password "YourPassword"
+   ```
+
+2. **Add .gitignore (if using plain text temporarily)**
+   ```
+   config.json
+   ```
+
+3. **Create config.json.template**
+   ```json
+   {
+     "DMPassword": "CHANGE_ME_OR_RUN_Encrypt-Password.ps1",
+     ...
+   }
+   ```
+
+4. **Document for Team**
+   - Add instructions in team wiki
+   - Share Encrypt-Password.ps1 script
+   - Note machine-specific requirement
+
+#### ❌ Don't Do This
+
+- ❌ Don't commit plain text passwords
+- ❌ Don't share encrypted passwords across machines (won't work!)
+- ❌ Don't email passwords (encrypted or not)
+- ❌ Don't use same encrypted string on different machines
 
 ## Usage
 
@@ -101,13 +299,15 @@ Test-Path "C:\Users\OneIM\Desktop\DeploymentManager_4.0.6_beta\Intragen.Deployme
 .\MainPsModule.ps1 -ZipPath "C:\path\to\transport.zip"
 ```
 
-### With Parameters (overrides config.json)
+### With Password Override
 
 ```powershell
-.\MainPsModule.ps1 `
-  -ZipPath "C:\path\to\transport.zip" `
-  -OutPath "C:\CustomOutput" `
-  -DMConfigDir "C:\CustomConfig"
+# Using encrypted password
+$encrypted = Get-Content "encrypted_password.txt"
+.\MainPsModule.ps1 -ZipPath "C:\path\to\transport.zip" -DMPassword $encrypted
+
+# Using plain text (not recommended)
+.\MainPsModule.ps1 -ZipPath "C:\path\to\transport.zip" -DMPassword "PlainPassword"
 ```
 
 ### With Switches
@@ -129,6 +329,7 @@ Test-Path "C:\Users\OneIM\Desktop\DeploymentManager_4.0.6_beta\Intragen.Deployme
 - **OutPath** - Output directory for exported files
 - **LogPath** - Log file path
 - **DMDll** - Path to DeploymentManager DLL
+- **DMPassword** - Password for encrypted configurations (plain text or encrypted with [E] prefix)
 
 ### Switches
 - **IncludeEmptyValues** - Include empty column values in export
@@ -137,8 +338,10 @@ Test-Path "C:\Users\OneIM\Desktop\DeploymentManager_4.0.6_beta\Intragen.Deployme
 
 ## Expected Output
 
+### With Encrypted Password
+
 ```
-=== OIM Export Tool ===
+OIM Export Tool
 
 [1/3] Extracting XML files from ZIP: C:\...\transport.zip
 Found 2 XML file(s) in child directories of TagTransport
@@ -150,92 +353,147 @@ Configuration loaded:
   OutPath:            C:\Users\OneIM\Desktop\Test_XMLtoDM
   LogPath:            C:\Users\OneIM\Desktop\Test_XMLtoDM\Logs\export.log
   DMDll:              C:\Users\OneIM\Desktop\DeploymentManager_4.0.6_beta\...
-  IncludeEmptyValues: False
-  PreviewXml:         False
-  CSVMode:            False
+  DMPassword:         ***ENCRYPTED***
 
 [3/3] Processing XML files...
-Processing file 1 of 2: TagTransport\01_test\TagData.xml
-  - Extracting DBObjects...
-  - Extracting Processes...
-  - Extracting Templates...
-  - Extracting Scripts...
+  Loading DeploymentManager DLL: ...
+  Connecting with config: ...
+  Decrypting encrypted password...
+  ✓ Password decrypted successfully
+  Connecting with password...
+  ✓ Connection established successfully
 
-Export completed successfully!
-Output directory: C:\Users\OneIM\Desktop\Test_XMLtoDM
+Processing DBObjects...
+Processing Processes...
+Processing Templates...
+Processing Scripts...
+
+✓ Export completed successfully!
 ```
 
-## Output Files
-
-The tool creates the following structure in the output directory:
+### Without Password
 
 ```
-OutPath/
-├── DBObjects.xml              # Database objects export
-├── Processes/
-│   └── *.xml                  # Process/JobChain exports
-├── Templates/
-│   └── *.vb                   # Template files
-└── Scripts/
-    └── *.vb                   # Script files
+OIM Export Tool
+
+[1/3] Extracting XML files from ZIP: C:\...\transport.zip
+Found 2 XML file(s) in child directories of TagTransport
+Extracted 2 XML file(s)
+
+[2/3] Validating configuration...
+Configuration loaded:
+  DMConfigDir:        C:\Users\OneIM\Desktop\Test_XMLtoDM\Config\Example
+  OutPath:            C:\Users\OneIM\Desktop\Test_XMLtoDM
+  DMPassword:         <not in config>
+
+[3/3] Processing XML files...
+  Loading DeploymentManager DLL: ...
+  Connecting with config: ...
+  Connecting without password...
+  ✓ Connection established successfully
+
+Processing DBObjects...
+...
 ```
 
 ## Troubleshooting
 
-### Error: "Missing required parameter(s): DMConfigDir"
+### Issue: "Failed to decrypt password"
 
-**Solution:** Check your config.json field names:
-- Must be `DMConfigDir` (not `ConfigDir`)
-- Must be `DMDll` (not `DmDll` or `DMdll`)
-
-### Error: "parameter cannot be found that matches parameter name 'Path'"
-
-**Solution:** Make sure all files from this ZIP are copied correctly. The old files had `-Path` parameter, new files use `-ZipPath`.
-
-### Error: "File not found: C:\..."
-
-**Solution:** Verify all paths in config.json exist and use double backslashes `\\`.
-
-### Config.json not being read
-
-**Solution:** Ensure config.json is in the same directory as MainPsModule.ps1 and has correct field names.
-
-## Configuration Priority
-
-Parameters are applied in this order (highest to lowest priority):
-
-1. **Command Line Parameters** - Directly passed to script
-2. **config.json** - Values from configuration file
-3. **Defaults** - Built-in default values
-
-Example:
-```powershell
-# If config.json has: "OutPath": "C:\\Test"
-# And you run: .\MainPsModule.ps1 -ZipPath "C:\file.zip" -OutPath "C:\\Custom"
-# Result: Uses "C:\Custom" (CLI overrides config)
+**Symptoms:**
+```
+Decrypting encrypted password...
+ERROR: Failed to decrypt password
+Password decryption failed. Ensure password was encrypted on this machine by this user.
 ```
 
-## Development
+**Cause:** Password was encrypted on a different machine or by a different user.
 
-### Parameter Naming Convention
+**Solution:**
+1. Re-encrypt password on the current machine:
+   ```powershell
+   .\Encrypt-Password.ps1 -Password "YourPassword"
+   ```
+2. Update config.json with new encrypted value
+3. Run tool again
 
-All parameters use consistent naming:
-- `ZipPath` - Path to ZIP file (not `Path`)
-- `DMConfigDir` - Configuration directory (not `ConfigDir`)
-- `DMDll` - DeploymentManager DLL path
+### Issue: "Password in plain text" warning
 
-### Adding New Modules
+**Symptoms:**
+```
+Using plain text password
+⚠ Consider encrypting with: ConvertTo-EncryptedBlock
+```
 
-1. Create module directory under `Modules/`
-2. Create `*_Main_PsModule.psm1` (main processing)
-3. Create `*_XmlParser.psm1` (XML parsing)
-4. Import in `MainPsModule.ps1`
-5. Call from processing loop
+**Cause:** Password in config.json is not encrypted.
+
+**Solution:**
+1. Encrypt password:
+   ```powershell
+   .\Encrypt-Password.ps1 -Password "YourCurrentPlainTextPassword"
+   ```
+2. Replace plain text password in config.json with encrypted value
+
+### Issue: Encrypted password doesn't work after Windows update
+
+**Cause:** Windows updates or profile changes can invalidate DPAPI encryption.
+
+**Solution:**
+1. Re-encrypt password:
+   ```powershell
+   .\Encrypt-Password.ps1 -Password "YourPassword"
+   ```
+2. Update config.json
+
+## Configuration Reference
+
+### Complete config.json Example
+
+```json
+{
+  "DMConfigDir": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Config\\Example",
+  "OutPath": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM",
+  "LogPath": "C:\\Users\\OneIM\\Desktop\\Test_XMLtoDM\\Logs\\export.log",
+  "DMDll": "C:\\Users\\OneIM\\Desktop\\DeploymentManager_4.0.6_beta\\Intragen.Deployment.OneIdentity.dll",
+  "DMPassword": "[E]01000000d08c9ddf0115d1118c7a00c04fc297eb01000000...",
+  "IncludeEmptyValues": false,
+  "PreviewXml": false,
+  "CSVMode": false
+}
+```
+
+### Configuration Fields
+
+| Field | Required | Description | Example |
+|-------|----------|-------------|---------|
+| `DMConfigDir` | Yes | Path to DM configuration directory | `C:\\Config\\Example` |
+| `OutPath` | No | Output directory (default: current dir) | `C:\\Output` |
+| `LogPath` | No | Log file path (default: OutPath\\Logs\\export.log) | `C:\\Logs\\export.log` |
+| `DMDll` | Yes | Path to DeploymentManager DLL | `C:\\DM\\Intragen.Deployment.OneIdentity.dll` |
+| `DMPassword` | No | Password (encrypted or plain text) | `[E]encrypted...` or `PlainText` |
+| `IncludeEmptyValues` | No | Include empty columns (default: false) | `true` or `false` |
+| `PreviewXml` | No | Preview XML in console (default: false) | `true` or `false` |
+| `CSVMode` | No | Export as CSV (default: false) | `true` or `false` |
 
 ## Version History
 
-### v2.0 (Current)
-- Standardized all parameter names to use `ZipPath` and `DMConfigDir`
+### v2.2 (Current)
+- ✅ Added **encrypted password** support via `ConvertTo-EncryptedBlock`/`ConvertFrom-EncryptedBlock`
+- ✅ Created `PasswordEncryption.psm1` module
+- ✅ Created `Encrypt-Password.ps1` helper script
+- ✅ Password priority: CLI > config.json
+- ✅ Automatic decryption when `[E]` prefix detected
+- ✅ Updated `InputValidator.psm1` with password support
+- ✅ Updated `PsModuleLogin.psm1` with decryption logic
+- ✅ Machine + user specific encryption (Windows DPAPI)
+
+### v2.1
+- Fixed logging integration
+- Improved error handling
+- Enhanced debug output
+
+### v2.0
+- Standardized parameter names to use `ZipPath` and `DMConfigDir`
 - Fixed config.json reading issues
 - Added comprehensive error handling
 - Improved logging with color-coded output
@@ -244,14 +502,36 @@ All parameters use consistent naming:
 ### v1.0
 - Initial release with basic export functionality
 
+## Quick Reference
+
+### Encrypt Password
+```powershell
+.\Encrypt-Password.ps1
+# or
+.\Encrypt-Password.ps1 -Password "MyPassword"
+```
+
+### config.json with Encrypted Password
+```json
+{
+  "DMPassword": "[E]encrypted_string_here..."
+}
+```
+
+### Run Tool
+```powershell
+.\MainPsModule.ps1 -ZipPath "transport.zip"
+```
+
 ## Support
 
 For issues or questions:
-1. Check the TROUBLESHOOTING section
-2. Verify config.json format and field names
-3. Ensure all required DLLs and paths exist
-4. Check PowerShell version (must be 5.1+)
+1. Check the **Troubleshooting** section
+2. Check the **Password Support** section for encrypted configurations
+3. Verify config.json format and field names
+4. Check password encryption/decryption
+5. Ensure paths are absolute and correct
 
 ## License
 
-This tool is provided as-is for use with One Identity Manager.
+Internal Intragen tool - All rights reserved

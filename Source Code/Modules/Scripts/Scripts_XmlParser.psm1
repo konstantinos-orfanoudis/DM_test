@@ -1,100 +1,44 @@
-function Get-ScriptsFromChangeLabel {
-  <#
-  .SYNOPSIS
-    Extracts DialogScript objects from ChangeLabel XML, including UID, ScriptName, and ScriptCode.
-  
-  .DESCRIPTION
-    Parses the TagData.xml file and extracts all DialogScript objects found in ChangeContent,
-    returning complete script information without requiring database access.
-  
-  .PARAMETER Path
-    Path to the TagData.xml file.
-  
-  .OUTPUTS
-    Array of PSCustomObjects with UID, ScriptName, and ScriptCode properties.
-  #>
+function Get-ScriptKeysFromChangeLabel {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrWhiteSpace()]
-    [string]$Path
-  )
+    [string]$ZipPath,
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    throw "File not found: $Path"
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string]$TypeName = "DialogScript"   # the <T> value to match
+  )
+  $Logger = Get-Logger
+  if (-not (Test-Path -LiteralPath $ZipPath)) {
+    $Logger.Info("File not found: $ZipPath")
+    throw "File not found: $ZipPath"
   }
 
-  # Read and decode file (handles HTML entities)
-  $text = Get-Content -LiteralPath $Path -Raw
+  $text = Get-Content -LiteralPath $ZipPath -Raw
+
+  # Decode entities a few times (safe even if already decoded)
   for ($i = 0; $i -lt 3; $i++) {
     $text = [System.Net.WebUtility]::HtmlDecode($text)
   }
 
-  # Regex to find DbObject blocks with DialogScript ObjectKey
-  $reDbObject = [regex]::new('(?s)<DbObject\b.*?</DbObject>')
-  
-  # Regex to extract UID from ObjectKey: <T>DialogScript</T><P>UID</P>
-  $reObjectKeyUID = [regex]::new(
-    '(?s)<Column\b[^>]*\bName\s*=\s*"ObjectKey"[^>]*>.*?<T>DialogScript</T>.*?<P>(?<uid>[^<\s]+)</P>',
-    [System.Text.RegularExpressions.RegexOptions]::Singleline
-  )
+  # Match: <T>DialogScript</T><P>...</P> (allow whitespace/newlines)
+  $pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
 
-  # Regex to extract values from ChangeContent Diff
-  $reScriptName = [regex]::new(
-    "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']ScriptName[""'][^>]*>.*?<Value>(?<name>[^<]*)</Value>",
-    [System.Text.RegularExpressions.RegexOptions]::Singleline
-  )
-
-  $reScriptCode = [regex]::new(
-    "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']ScriptCode[""'][^>]*>.*?<Value>(?<code>.*?)</Value>",
-    [System.Text.RegularExpressions.RegexOptions]::Singleline
-  )
-
-  $scripts = New-Object 'System.Collections.Generic.List[object]'
   $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+  $keys = New-Object 'System.Collections.Generic.List[string]'
 
-  foreach ($dboMatch in $reDbObject.Matches($text)) {
-    $dboText = $dboMatch.Value
-
-    # Check if this DbObject is for a DialogScript
-    $mKey = $reObjectKeyUID.Match($dboText)
-    if (-not $mKey.Success) { continue }
-
-    $uid = $mKey.Groups['uid'].Value.Trim()
-    if ([string]::IsNullOrWhiteSpace($uid) -or -not $seen.Add($uid)) { 
-      continue 
-    }
-
-    # Extract ScriptName and ScriptCode from ChangeContent
-    $mName = $reScriptName.Match($dboText)
-    $mCode = $reScriptCode.Match($dboText)
-
-    $scriptName = if ($mName.Success) { 
-      [System.Net.WebUtility]::HtmlDecode($mName.Groups['name'].Value).Trim() 
-    } else { 
-      "UnknownScript_$uid" 
-    }
-
-    $scriptCode = if ($mCode.Success) { 
-      [System.Net.WebUtility]::HtmlDecode($mCode.Groups['code'].Value).Trim() 
-    } else { 
-      "" 
-    }
-
-    # Only add if we have actual code
-    if (-not [string]::IsNullOrWhiteSpace($scriptCode)) {
-      $scripts.Add([pscustomobject]@{
-        UID        = $uid
-        ScriptName = $scriptName
-        ScriptCode = $scriptCode
-      })
+  foreach ($m in [regex]::Matches($text, $pattern)) {
+    $k = $m.Groups['p'].Value.Trim()
+    if ($k -and $seen.Add($k)) {
+      [void]$keys.Add($k)
     }
   }
 
-  return $scripts
+  return $keys
 }
 
 # Export module members
 Export-ModuleMember -Function @(
-  'Get-ScriptsFromChangeLabel'
+  'Get-ScriptKeysFromChangeLabel'
 )

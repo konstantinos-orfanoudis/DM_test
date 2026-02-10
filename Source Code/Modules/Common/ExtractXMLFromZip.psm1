@@ -86,8 +86,10 @@ function Resolve-TagDataXmlFromZip {
               TempDir     = $tempDir
               XmlFilePath = $xmlFile.FullName
               ChildDir    = $childDir.Name
+              TranspName = [System.IO.Path]::GetFileNameWithoutExtension($ZipPath)
+              
             })
-          }
+          }         
         }
       }
     }

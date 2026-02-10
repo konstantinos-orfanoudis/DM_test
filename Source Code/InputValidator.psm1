@@ -6,7 +6,8 @@ param(
   [switch]$IncludeEmptyValues,
   [switch]$PreviewXml,
   [switch]$CSVMode,
-  [string]$DMDll   
+  [string]$DMDll,
+  [string]$DMPassword = ""
 )
 
 $scriptDir = $PSScriptRoot
@@ -14,7 +15,8 @@ $scriptDir = $PSScriptRoot
 Write-Host "root $scriptDir"
 $configPath  = Join-Path $scriptDir 'config.json'
 
-Write-Host $configPath 
+Write-Host $configPath
+
 $config = $null
 "configPath raw = [$configPath]"
 "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($configPath))"
@@ -35,12 +37,24 @@ $DMConfigDirFromConfig = Get-ConfigPropValue $config "DMConfigDir"
 $OutPathFromConfig   = Get-ConfigPropValue $config "OutPath"
 $LogPathFromConfig   = Get-ConfigPropValue $config "LogPath"
 $DMDllFromConfig     = Get-ConfigPropValue $config "DMDll"
+$DMPasswordFromConfig = Get-ConfigPropValue $config "DMPassword"
 
 Write-Host "DEBUG: Values from config.json:" -ForegroundColor Yellow
 Write-Host "  DMConfigDir: '$DMConfigDirFromConfig'" -ForegroundColor Gray
 Write-Host "  OutPath:     '$OutPathFromConfig'" -ForegroundColor Gray
 Write-Host "  LogPath:     '$LogPathFromConfig'" -ForegroundColor Gray
 Write-Host "  DMDll:       '$DMDllFromConfig'" -ForegroundColor Gray
+
+# Don't display password in logs
+if (-not [string]::IsNullOrWhiteSpace($DMPasswordFromConfig)) {
+  if ($DMPasswordFromConfig -match '^\[E\]') {
+    Write-Host "  DMPassword:  ***ENCRYPTED***" -ForegroundColor Gray
+  } else {
+    Write-Host "  DMPassword:  ***PROVIDED (plain text)***" -ForegroundColor Yellow
+  }
+} else {
+  Write-Host "  DMPassword:  <not in config>" -ForegroundColor Gray
+}
 Write-Host ""
 
 if (-not $PSBoundParameters.ContainsKey("DMConfigDir") -and -not [string]::IsNullOrWhiteSpace($DMConfigDirFromConfig)) {
@@ -74,6 +88,13 @@ if (-not $PSBoundParameters.ContainsKey("DMDll") -and -not [string]::IsNullOrWhi
 else {
   Write-Host "DEBUG: DMDll from CLI or empty" -ForegroundColor Gray
 }
+
+# Password Priority: CLI > config.json
+if (-not $PSBoundParameters.ContainsKey("DMPassword") -and -not [string]::IsNullOrWhiteSpace($DMPasswordFromConfig)) {
+  $DMPassword = [string]$DMPasswordFromConfig
+  Write-Host "DEBUG: Using DMPassword from config.json" -ForegroundColor Cyan
+}
+
 Write-Host ""
 
 # Switches: only set from config if user didn't pass the switch
@@ -158,6 +179,7 @@ return [pscustomobject]@{
   OutPath            = $OutPath
   LogPath            = $LogPath
   DMDll              = $DMDll
+  DMPassword         = $DMPassword
   IncludeEmptyValues = [bool]$IncludeEmptyValues
   PreviewXml         = [bool]$PreviewXml
   CSVMode            = [bool]$CSVMode
@@ -180,5 +202,6 @@ function Get-ConfigPropValue {
 
 # Export module members
 Export-ModuleMember -Function @(
-  'InputValidator'
+  'InputValidator',
+  'Get-ConfigPropValue'
 )

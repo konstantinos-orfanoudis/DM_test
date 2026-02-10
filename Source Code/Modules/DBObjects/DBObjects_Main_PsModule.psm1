@@ -69,7 +69,10 @@ param(
    
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$DMDll
+  [string]$DMDll,
+
+  [Parameter(Mandatory = $false)]
+  [string]$DMPassword = ""
 )
 
 #region Module Imports
@@ -90,57 +93,85 @@ try {
   Write-Host "OIM DbObjects Export Tool" -ForegroundColor Cyan
   Write-Host "Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})"
   Write-Host ""
+  $Logger = Get-Logger
+  $Logger.info("OIM DbObjects Export Tool")
+  $Logger.info("Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})")
 
   # Step 1: Parse input XML
   Write-Host "[1/5] Parsing input XML: $ZipPath"
+  $Logger.info("Parsing input XML")
   $dbObjects = Get-AllDbObjectsFromChangeContent -ZipPath $ZipPath -IncludeEmptyValues:$IncludeEmptyValues
 
   if (-not $dbObjects -or $dbObjects.Count -eq 0) {
     Write-Host "No embedded DbObjects found in ChangeContent columns." -ForegroundColor Yellow
+    $Logger = Get-Logger
+    $Logger.info("No embedded DbObjects found in ChangeContent columns.")
     return
   }
 
   $uniqueTables = $dbObjects.TableName | Where-Object { $_ } | Sort-Object -Unique
   Write-Host "Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')"
   Write-Host ""
+  $Logger = Get-Logger
+  $Logger.info("Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')")
 
   # Step 2: Login to API
   Write-Host "[2/5] Opening session with DMConfigDir: $DMConfigDir"
-  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+  $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
+  $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
+  $Logger = Get-Logger
+  $Logger.info("Authentication successful")
   Write-Host "Authentication successful"
   Write-Host ""
 
+
   # Step 3: Get column permissions
   Write-Host "[3/5] Retrieving column permissions for tables: $($uniqueTables -join ', ')"
+  $Logger.info("Retrieving column permissions for tables: $($uniqueTables -join ', ')")
   $allowedByTable = Get-ColumnPermissionsPsModule -Session $session -Tables $uniqueTables
   Write-Host "Retrieved permissions for $($allowedByTable.Count) table(s)"
   Write-Host ""
+  $logger.info("Retrieved permissions for $($allowedByTable.Count) table(s)")
 
   # Step 4: Filter columns
   Write-Host "[4/5] Filtering columns based on permissions"
+  $Logger.info("Filtering columns based on permissions")
   $dbObjectsFiltered = Filter-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
   $totalColumns = ($dbObjectsFiltered | ForEach-Object { $_.Columns.Count } | Measure-Object -Sum).Sum
   Write-Host "Retained $totalColumns allowed column(s) across all objects"
   Write-Host ""
+  $Logger.info("Retained $totalColumns allowed column(s) across all objects")
 
   # Step 5: Export
-  Write-Host "[5/5] Exporting to: $OutPath"
+  $outpathfolder = "$OutPath"+"\DBObjects"  
+      if (-not (Test-Path $outpathfolder)) {
+          New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
+      }
+  Write-Host "[5/5] Exporting to: $outpathfolder"
+  $Logger.info("Exporting to: $outpathfolder")
   
   if ($CSVMode) {
-    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml | Out-Null
+    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml | Out-Null
   }
   else {
-    Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $OutPath -PreviewXml:$PreviewXml | Out-Null
+    Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml | Out-Null
   }
   
   Write-Host ""
   Write-Host "Export completed successfully!" -ForegroundColor Green
+  $Logger.info("Export completed successfully!")
 }
 catch {
+  $Logger = Get-logger
+  $Logger.info("ERROR: Export failed!")
+  $Logger.info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
   if ($_.ScriptStackTrace) {
+    $Logger = Get-logger
+    $logger.info("Stack Trace:")
+    $logger.info($_.ScriptStackTrace )
     Write-Host ""
     Write-Host "Stack Trace:" -ForegroundColor Yellow
     Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
