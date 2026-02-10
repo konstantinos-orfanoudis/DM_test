@@ -21,6 +21,8 @@ Class DmObjectAttr {
 
     DmObjectAttr([string]$name,[DmObject]$ref,[bool]$isKey) {
         if($ref -eq $null) {
+            $Logger = Get-Logger
+            $Logger.info("null reference for DmObjectAttr.name={0}" -f $name)
             throw ("null reference for DmObjectAttr.name={0}" -f $name)
         }
         $this.name = $name
@@ -164,6 +166,8 @@ Class DmDoc {
             }
 			
 			if(--$iterationLimit -eq 0) {
+                $Logger = Get-Logger
+                $Logger.info("iteration limit of {0} reached while sorting!" -f $iterationLimit)
 				throw ("iteration limit of {0} reached while sorting!" -f $iterationLimit)
 			}			
         } while($moved)
@@ -268,6 +272,8 @@ Function New-DmObjectAttr() {
         $attr = [DmObjectAttr]::new($column,$val,$isKey)
         return $attr
     } else {
+        $Logger = Get-Logger
+        $Logger.info("column {0} not found in entity of type {1}" -f $column,$entity.Tablename)
         throw ("column {0} not found in entity of type {1}" -f $column,$entity.Tablename)
     }
 }
@@ -286,6 +292,8 @@ Function New-DmObjectAttrRef() {
         $attr = [DmObjectAttr]::new($column,$objRef,$isKey)
         return $attr
     } else {
+        $Logger = get-Logger
+        $Logger.info("column {0} not found in entity of type {1}" -f $column,$entity.Tablename)
         throw ("column {0} not found in entity of type {1}" -f $column,$entity.Tablename)
     }
 }

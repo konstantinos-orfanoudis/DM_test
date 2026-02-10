@@ -5,8 +5,12 @@ function global:Get-FunctionName ([int]$StackNumber = 2) {return [string]$(Get-P
 #Logger code starting here.
 
 
-
-#Logger code starting here.
+  $configPath = Join-Path $PSScriptRoot 'config.json'
+  $config = Get-Content $configPath -Raw | ConvertFrom-Json
+  $Nloggerdll = [string]$config.NLoggerDLL
+  # Add-Type -Path 'C:\Program Files\One Identity\One Identity Manager\NLog.dll'
+  Add-Type -Path $Nloggerdll
+  #Logger code starting here.
 
 function global:Get-FunctionName ([int]$StackNumber = 1) {return [string]$(Get-PSCallStack)[$StackNumber].FunctionName}
 
@@ -15,48 +19,14 @@ function global:Get-FunctionName ([int]$StackNumber = 1) {return [string]$(Get-P
 function global:Get-Logger() {
 
 
-
-  $modulesDir = Split-Path -Parent $PSScriptRoot
-
-  Write-Host "ModulesDir: $modulesDir"
-
-  $sourceDir = Split-Path -Parent $modulesDir
-  Import-Module (Join-Path $sourceDir "InputValidator.psm1") -Force
-
-Write-Host "root $sourceDir"
-$configPath  = Join-Path $sourceDir 'config.json'
+  $configPath = Join-Path $PSScriptRoot 'config.json'
+  $config = Get-Content $configPath -Raw | ConvertFrom-Json
+  $LogPath = [string]$config.LogPath  
+  $FinalLogPath = $LogPath + "\ultimo_log.log"
+  $ArchiveLogPath = $LogPath + "\ultimo_log"
+ 
 
 
-
-
-$config = $null
-"configPath raw = [$configPath]"
-"IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($configPath))"
-
-if(Test-Path -LiteralPath $configPath) {
-    try{
-        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-    } catch {
-        throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
-    }
-}
-Else{
-  throw "The config.json does not exist at '$configPath'"
-}
-
-
-$LogPath = Get-ConfigPropValue $config "LogPath"
-
-#$NlogPath = Get-ConfigPropValue $config "NlogPath"
-
-
-
-
-
-
-  Add-Type -Path 'C:\Program Files\One Identity\One Identity Manager\NLog.dll'
-
-  Write-Host "  LogPath: $($config.LogPath)" -ForegroundColor Gray
 
   $method = Get-FunctionName -StackNumber 2
 
@@ -64,7 +34,7 @@ $LogPath = Get-ConfigPropValue $config "LogPath"
 
   $logCfg  = Get-NewLogConfig
 
-  $debugLog           = Get-NewLogTarget -targetType "file"
+  $debugLog  = Get-NewLogTarget -targetType "file"
 
   $debugLog.archiveEvery    = "Day"
 
@@ -72,7 +42,7 @@ $LogPath = Get-ConfigPropValue $config "LogPath"
 
   $debugLog.CreateDirs    = $true
 
-  $debugLog.FileName      = $LogPath #Setup logfile path
+  $debugLog.FileName      =  $FinalLogPath #Setup logfile path
 
   $debugLog.Encoding      = [System.Text.Encoding]::GetEncoding("utf-8")
 
@@ -82,7 +52,7 @@ $LogPath = Get-ConfigPropValue $config "LogPath"
 
   $debugLog.maxArchiveFiles   = 7
 
-  $debugLog.archiveFileName   = "$LogPath{#}.log" #Setup logfile path
+  $debugLog.archiveFileName   = "$ArchiveLogPath{#}.log" #Setup logfile path
 
   $logCfg.AddTarget("file", $debugLog)
 

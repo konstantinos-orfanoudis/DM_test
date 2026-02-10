@@ -35,11 +35,13 @@ function Get-ColumnPermissionsPsModule {
 
     # Convert to hashtable
     $allowedByTable = @{}
+    $Logger = Get-logger
+    $Logger.info("The selected teable(s):")
     foreach ($selectedTableName in $Tables) {
       Write-Host  $selectedTableName
       $selectedTables = $connection.Tables  | Where-Object { $_.TableName -eq $selectedTableName }
       Write-Host $selectedTables
-
+      $Logger.info($selectedTables)
       $columns = $selectedTables.Columns
       $allowedColumns = [System.Collections.Generic.List[string]]::new()
 
@@ -55,6 +57,8 @@ function Get-ColumnPermissionsPsModule {
     return $allowedByTable
   }
   catch {
+    $Logger = Get-Logger
+    $Logger.info("Failed to retrieve column permissions: $_")
     throw "Failed to retrieve column permissions: $_"
   }
 }

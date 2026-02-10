@@ -14,7 +14,8 @@ $scriptDir = $PSScriptRoot
 Write-Host "root $scriptDir"
 $configPath  = Join-Path $scriptDir 'config.json'
 
-Write-Host $configPath 
+Write-Host $configPath
+
 $config = $null
 "configPath raw = [$configPath]"
 "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($configPath))"
@@ -23,10 +24,14 @@ if(Test-Path -LiteralPath $configPath) {
     try{
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     } catch {
+        $Logger = Get-Logger
+        $Logger.info("Failed to read/parse config.json at '$configPath': $($_.Exception.Message)")
         throw "Failed to read/parse config.json at '$configPath': $($_.Exception.Message)"
     }
 }
 Else{
+  $Logger = Get-Logger
+  $Logger.info("The config.json does not exist at '$configPath'")
   throw "The config.json does not exist at '$configPath'"
 }
 
@@ -45,33 +50,49 @@ Write-Host ""
 
 if (-not $PSBoundParameters.ContainsKey("DMConfigDir") -and -not [string]::IsNullOrWhiteSpace($DMConfigDirFromConfig)) {
   $DMConfigDir = [string]$DMConfigDirFromConfig
+  $Logger = Get-Logger
+  $Logger.info("Using DMConfigDir from config: $DMConfigDir")
   Write-Host "DEBUG: Using DMConfigDir from config: $DMConfigDir" -ForegroundColor Cyan
 }
 else {
+  $Logger = Get-Logger
+  $Logger.info("DMConfigDir from CLI or empty")
   Write-Host "DEBUG: DMConfigDir from CLI or empty" -ForegroundColor Gray
 }
 
 if (-not $PSBoundParameters.ContainsKey("OutPath") -and -not [string]::IsNullOrWhiteSpace($OutPathFromConfig)) {
   $OutPath = [string]$OutPathFromConfig
+  $Logger = Get-Logger
+  $Logger.info("Using OutPath from config: $OutPath")
   Write-Host "DEBUG: Using OutPath from config: $OutPath" -ForegroundColor Cyan
 }
 else {
+  $Logger = Get-Logger
+  $Logger.info("OutPath from CLI or empty")
   Write-Host "DEBUG: OutPath from CLI or empty" -ForegroundColor Gray
 }
 
 if (-not $PSBoundParameters.ContainsKey("LogPath") -and -not [string]::IsNullOrWhiteSpace($LogPathFromConfig)) {
   $LogPath = [string]$LogPathFromConfig
+  $Logger = Get-Logger
+  $Logger.info("Using LogPath from config: $LogPath")
   Write-Host "DEBUG: Using LogPath from config: $LogPath" -ForegroundColor Cyan
 }
 else {
+  $Logger = Get-Logger
+  $Logger.info("LogPath from CLI or empty")
   Write-Host "DEBUG: LogPath from CLI or empty" -ForegroundColor Gray
 }
 
 if (-not $PSBoundParameters.ContainsKey("DMDll") -and -not [string]::IsNullOrWhiteSpace($DMDllFromConfig)) {
   $DMDll = [string]$DMDllFromConfig
+  $Logger = Get-Logger
+  $Logger.info("Using DMDll from config: $DMDll")
   Write-Host "DEBUG: Using DMDll from config: $DMDll" -ForegroundColor Cyan
 }
 else {
+  $Logger = Get-Logger
+  $Logger.info("DMDll from CLI or empty")
   Write-Host "DEBUG: DMDll from CLI or empty" -ForegroundColor Gray
 }
 Write-Host ""
@@ -122,6 +143,8 @@ $missing = @()
 if ([string]::IsNullOrWhiteSpace($DMConfigDir)) { $missing += "DMConfigDir" }
 
 if ($missing.Count -gt 0) {
+  $Logger = Get-Logger
+  $Logger.info("Missing required parameter(s): $($missing -join ', '). Provide via command line or config file '$configPath'.")
   throw "Missing required parameter(s): $($missing -join ', '). Provide via command line or config file '$configPath'."
 }
 
@@ -180,5 +203,7 @@ function Get-ConfigPropValue {
 
 # Export module members
 Export-ModuleMember -Function @(
-  'InputValidator'
+  'InputValidator',
+  'Get-ConfigPropValue'
 )
+

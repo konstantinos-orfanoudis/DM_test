@@ -47,6 +47,7 @@ function Export-ToNormalXml {
   }
 
   # Ensure output directory exists
+  write-host "$OutPath !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   if (-not (Test-Path -LiteralPath $OutPath)) {
     New-Item -ItemType Directory -Path $OutPath -Force | Out-Null
   }
@@ -142,8 +143,14 @@ function Export-ToNormalXml {
   [System.IO.File]::WriteAllText($outFile, $xmlString, $utf8NoBom)
 
   Write-Host "Wrote XML: $outFile"
+  $Logger = Get-Logger
+  $Logger.info("Wrote XML: $outFile")
 
   if ($PreviewXml) {
+    $Logger = Get-Logger
+    $Logger.info("--- XML Preview ---")
+    $Logger.info($xmlString)
+    $Logger.info("--- End Preview ---")
     Write-Host ""
     Write-Host "--- XML Preview ---"
     Write-Host $xmlString

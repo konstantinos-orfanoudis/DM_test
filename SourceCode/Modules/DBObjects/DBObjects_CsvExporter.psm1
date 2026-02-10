@@ -68,7 +68,7 @@ function Export-ToCsvMode {
     }
   }
 
-  # Build column schema: TableName -> ordered list of unique column names
+  # Build column schema: TableName -> ordered list of column objects with metadata
   $columnsByTable = [ordered]@{}
   foreach ($obj in $DbObjects) {
     if ([string]::IsNullOrWhiteSpace($obj.TableName)) { continue }
@@ -77,15 +77,27 @@ function Export-ToCsvMode {
       $columnsByTable[$obj.TableName] = [ordered]@{}
     }
     
-    # Add PK first
+    # Add PK first (as normal column, not FK)
     if (-not [string]::IsNullOrWhiteSpace($obj.PkName)) {
-      $columnsByTable[$obj.TableName][$obj.PkName] = $true
+      if (-not $columnsByTable[$obj.TableName].Contains($obj.PkName)) {
+        $columnsByTable[$obj.TableName][$obj.PkName] = [pscustomobject]@{
+          Name = $obj.PkName
+          IsForeignKey = $false
+        }
+      }
     }
     
-    # Add other columns in order
+    # Add other columns in order with their metadata
     foreach ($col in $obj.Columns) {
       if (-not [string]::IsNullOrWhiteSpace($col.Name)) {
-        $columnsByTable[$obj.TableName][$col.Name] = $true
+        if (-not $columnsByTable[$obj.TableName].Contains($col.Name)) {
+          $columnsByTable[$obj.TableName][$col.Name] = [pscustomobject]@{
+            Name = $col.Name
+            IsForeignKey = $col.IsForeignKey
+            FkTableName = if ($col.IsForeignKey) { $col.FkTableName } else { $null }
+            FkColumnName = if ($col.IsForeignKey) { $col.FkColumnName } else { $null }
+          }
+        }
       }
     }
   }
@@ -143,11 +155,30 @@ function Export-ToCsvMode {
       # Write schema with placeholders for this table
       $xw.WriteStartElement($tableName)
       
-      # Write each column with @ColumnName@ placeholder
+      # Write each column with appropriate placeholder structure
       foreach ($colName in $columnOrder) {
+        $colMeta = $columnsByTable[$tableName][$colName]
+        
         $xw.WriteStartElement($colName)
-        $xw.WriteString("@$colName@")
-        $xw.WriteEndElement()
+        
+        # Check if this is a foreign key
+        if ($colMeta.IsForeignKey -and 
+            -not [string]::IsNullOrWhiteSpace($colMeta.FkTableName) -and
+            -not [string]::IsNullOrWhiteSpace($colMeta.FkColumnName)) {
+          
+          # Write nested structure for FK: <ColumnName><FkTable><FkColumn>@ColumnName@</FkColumn></FkTable></ColumnName>
+          $xw.WriteStartElement($colMeta.FkTableName)
+          $xw.WriteStartElement($colMeta.FkColumnName)
+          $xw.WriteString("@$colName@")  # Placeholder is the original column name
+          $xw.WriteEndElement() # </FkColumnName>
+          $xw.WriteEndElement() # </FkTableName>
+        }
+        else {
+          # Normal column - just placeholder
+          $xw.WriteString("@$colName@")
+        }
+        
+        $xw.WriteEndElement() # </ColumnName>
       }
       
       $xw.WriteEndElement() # </TableName>
@@ -167,8 +198,14 @@ function Export-ToCsvMode {
     [System.IO.File]::WriteAllText($tableXmlPath, $xmlString, $utf8NoBom)
 
     Write-Host "Wrote schema XML: $tableXmlPath"
+    $Logger = Get-logger
+    $Logger.info("Wrote schema XML: $tableXmlPath")
 
     if ($PreviewXml) {
+      $Logger = Get-Logger
+      $Logger.info("--- XML Preview: $tableName ---")
+      $Logger.info($xmlString)
+      $Logger.info("--- End Preview ---")
       Write-Host ""
       Write-Host "--- XML Preview: $tableName ---"
       Write-Host $xmlString
@@ -221,6 +258,8 @@ function Export-ToCsvMode {
     
     $rowCount = if ($objectsByTable.Contains($tableName)) { $objectsByTable[$tableName].Count } else { 0 }
     Write-Host "Wrote data CSV: $tableCsvPath (Rows: $rowCount)"
+    $Logger = Get-logger
+    $Logger.info("Wrote data CSV: $tableCsvPath (Rows: $rowCount)")
 
     #endregion
   }

@@ -19,20 +19,27 @@ function Write-ScriptsAsVbNetFiles {
   }
 
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
+  $counter = 000
   foreach ($s in $Scripts) {
     $o = Open-QSql
     $wc = "select ScriptName, ScriptCode from DialogScript where UID_DialogScript = '$s'"
     $pr = Find-QSql $wc -dict 
     $ScriptCode = $pr["ScriptCode"]
     $ScriptName = $pr["ScriptName"]
+    $Logger = Get-Logger
+    $Logger.info("The UID_DialogColumn found is: $s")
+    $Logger.info("The ScriptCode Found is:  $ScriptCode")
+    $Logger.info("ScriptName found is: $ScriptName")
     Close-QSql
-    
-    $fileName = "-" + $ScriptName +".vb"
+    $safeName = $ScriptName -replace '[\\/:*?"<>|]', '_'
+    $fileName = ('{0:D3}-{1}.vb' -f ($counter + 1), $safeName)
     $filePath = Join-Path $OutDir $fileName
     [System.IO.File]::WriteAllText($filePath, $ScriptCode, $utf8NoBom)
 
     Write-Host "Wrote script: $filePath" -ForegroundColor Green
+    $Logger = Get-Logger
+    $Logger.Info("Wrote script: $filePath")
+    $counter = $counter + 1
   }
 }
 

@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Main script to export OIM Templates from TagData XML files.
+  Main script to export OIM Scripts from TagData XML files.
 
 .DESCRIPTION
-  Orchestrates the extraction of Templates from OIM Transport XML files.
+  Orchestrates the extraction of Scripts from OIM Transport XML files.
 
 .PARAMETER Path
   Path to the input XML file (e.g., Transport TagData.xml).
@@ -21,10 +21,10 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  Templates_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  Scripts_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
 #>
 
-function Templates_Main_PsModule{
+function TableScripts_Main_PsModule{
 param(
   [Parameter(Mandatory = $true, Position = 0)]
   [ValidateNotNullOrEmpty()]
@@ -40,11 +40,11 @@ param(
 
   [Parameter(Mandatory = $false)]
   [string]$LogPath = "",
-  
+
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$DMDll,
-  
+
   [Parameter(Mandatory = $false)]
   [switch]$CSVMode
 )
@@ -55,62 +55,66 @@ $modulesDir = Split-Path -Parent $PSScriptRoot
 $commonDir = Join-Path $modulesDir "Common"
 
 # Import all required modules
-Import-Module (Join-Path $scriptDir "Templates_XmlParser.psm1") -Force
+Import-Module (Join-Path $scriptDir "TableScripts_XmlParser.psm1") -Force
 Import-Module (Join-Path $commonDir "PsModuleLogin.psm1") -Force
-Import-Module (Join-Path $scriptDir "Templates_Exporter_PsModule.psm1") -Force
+Import-Module (Join-Path $scriptDir "TableScripts_Exporter_PsModule.psm1") -Force
 #endregion
 
 #region Main Execution
-$Logger = Get-Logger
-
 try {
-  $Logger.info("OIM Templates Export Tool")
-  Write-Host "OIM Templates Export Tool" -ForegroundColor Cyan
+  $Logger = Get-Logger
+  $Logger.Info(" OIM Table Scripts Export Tool")
+  Write-Host "OIM Table Scripts Export Tool" -ForegroundColor Cyan
   Write-Host ""
 
   # Step 1: Parse input XML
-  $Logger.Info("Parsing input XML: $ZipPath")
   Write-Host "[1/3] Parsing input XML: $ZipPath"
-  $templates = Get-TemplatesFromChangeContent -ZipPath $ZipPath
-  Write-Host "Found $($templates.Count) template(s)" -ForegroundColor Cyan
-  $Logger.Info("Found $($templates.Count) template(s)")
+  $Logger.Info("Parsing input XML: $ZipPath")
+  $Tablescripts = Get-DialogTableScriptsFromChangeLabel -ZipPath $ZipPath 
 
-  if ($templates.Count -gt 0) {
+  Write-Host "Found $($Tablescripts.Count) Tablescript(s)" -ForegroundColor Cyan
+  $Logger.Info("Found $($Tablescripts.Count) Tablescript(s)")
+
+  if ($Tablescripts.Count -gt 0) {
     # Step 2: Login to API
-    $Logger.Info("Opening session with DMConfigDir")
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
-    Write-Host "Authentication successful"
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")
+    Write-Host "Authentication successful"
     Write-Host ""
     
-    # Step 3: Export Templates
+    # Step 3: Export Scripts
     Write-Host "[3/3] Exporting to: $OutPath"
     $Logger.Info("Exporting to: $OutPath")
-    $outDirTemplates = Join-Path -Path $OutPath -ChildPath "Templates"
-    Write-TemplatesAsVbNetFiles -Templates $templates -OutDir $outDirTemplates
+    $outDirScripts = Join-Path -Path $OutPath -ChildPath "TableScripts"
+    Write-TableScriptsAsVbNetFiles -Scripts $Tablescripts -OutDir $outDirScripts
+    $Logger.Info("Export completed successfully!")
     
     Write-Host ""
     Write-Host "Export completed successfully!" -ForegroundColor Green
-    $Logger.Info("Export completed successfully!")
   } 
   else {
+    Write-Host "No TableScripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
     $Logger = Get-Logger
-    $Logger.Info("No templates found in ChangeContent in: $ZipPath")
-    Write-Host "No templates found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No TableScripts found in ChangeContent in: $ZipPath")
   }
 }
 catch {
+  $Logger = Get-Logger
   $Logger.Info("ERROR: Export failed!")
+  $Logger.Info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
   if ($_.ScriptStackTrace) {
+    $Logger = Get-Logger
+    $Logger.Info("Stack Trace:")
+    $Logger.Info($_.ScriptStackTrace)
     Write-Host ""
     Write-Host "Stack Trace:" -ForegroundColor Yellow
     Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
-    $Logger.Info("Stack Trace:")
   }
   throw
 }
@@ -119,5 +123,5 @@ catch {
 
 # Export module members
 Export-ModuleMember -Function @(
-  'Templates_Main_PsModule'
+  'TableScripts_Main_PsModule'
 )
