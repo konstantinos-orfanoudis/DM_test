@@ -6,8 +6,7 @@ param(
   [switch]$IncludeEmptyValues,
   [switch]$PreviewXml,
   [switch]$CSVMode,
-  [string]$DMDll,
-  [string]$DMPassword = ""
+  [string]$DMDll
 )
 
 $scriptDir = $PSScriptRoot
@@ -89,10 +88,11 @@ else {
   Write-Host "DEBUG: DMDll from CLI or empty" -ForegroundColor Gray
 }
 
-# Password Priority: CLI > config.json
-if (-not $PSBoundParameters.ContainsKey("DMPassword") -and -not [string]::IsNullOrWhiteSpace($DMPasswordFromConfig)) {
+# DMPassword: Always read from config.json (CLI switch triggers credential dialog in MainPsModule)
+$DMPassword = ""
+if (-not [string]::IsNullOrWhiteSpace($DMPasswordFromConfig)) {
   $DMPassword = [string]$DMPasswordFromConfig
-  Write-Host "DEBUG: Using DMPassword from config.json" -ForegroundColor Cyan
+  Write-Host "DEBUG: Read DMPassword from config.json" -ForegroundColor Cyan
 }
 
 Write-Host ""

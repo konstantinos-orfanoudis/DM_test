@@ -29,8 +29,17 @@
 .PARAMETER DMDll
   Path to the Deployment Manager DLL.
 
+.PARAMETER DMPassword
+  If specified, prompts for password interactively (password only, no username).
+  If not specified, password is read from config.json (can be encrypted with [E] prefix or plain text).
+
 .EXAMPLE
   .\MainPsModule.ps1 -ZipPath "C:\Input\export.zip" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+
+.EXAMPLE
+  .\MainPsModule.ps1 -ZipPath "C:\Input\export.zip" -DMPassword
+  
+  Prompts for password interactively.
 #>
 
 [CmdletBinding()]
@@ -45,7 +54,7 @@ param(
   [switch]$PreviewXml,
   [switch]$CSVMode,
   [string]$DMDll,
-  [string]$DMPassword = ""
+  [switch]$DMPassword
 )
 
 # --- Script Initialization ---
@@ -104,9 +113,7 @@ try {
   if ($PSBoundParameters.ContainsKey('DMDll')) {
     $validatorParams['DMDll'] = $DMDll
   }
-  if ($PSBoundParameters.ContainsKey('DMPassword')) {
-    $validatorParams['DMPassword'] = $DMPassword
-  }
+  # Note: DMPassword is handled separately via credential dialog
   if ($PSBoundParameters.ContainsKey('IncludeEmptyValues')) {
     $validatorParams['IncludeEmptyValues'] = $IncludeEmptyValues
   }
@@ -119,6 +126,26 @@ try {
   
   $config = InputValidator @validatorParams
   
+  # Handle password prompt if -DMPassword switch is used
+  $passwordToUse = $config.DMPassword
+  if ($DMPassword) {
+    Write-Host ""
+    Write-Host "Enter Password:" -ForegroundColor Cyan
+    $securePassword = Read-Host -Prompt "Password" -AsSecureString
+    
+    if ($securePassword -and $securePassword.Length -gt 0) {
+      # Extract plain text password from SecureString
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+      $passwordToUse = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+      [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+      
+      Write-Host "✓ Password provided" -ForegroundColor Green
+    } else {
+      Write-Host "⚠ No password provided - will use config.json password if available" -ForegroundColor Yellow
+    }
+    Write-Host ""
+  }
+  
   Write-Host "Configuration loaded:" -ForegroundColor Cyan
   Write-Host "  DMConfigDir:        $($config.DMConfigDir)" -ForegroundColor Gray
   Write-Host "  OutPath:            $($config.OutPath)" -ForegroundColor Gray
@@ -126,11 +153,13 @@ try {
   Write-Host "  DMDll:              $($config.DMDll)" -ForegroundColor Gray
   
   # Display password status (don't show actual password)
-  if (-not [string]::IsNullOrWhiteSpace($config.DMPassword)) {
-    if ($config.DMPassword -match '^\[E\]') {
-      Write-Host "  DMPassword:         ***ENCRYPTED***" -ForegroundColor Gray
+  if ($DMPassword) {
+    Write-Host "  DMPassword:         ***FROM PASSWORD PROMPT***" -ForegroundColor Green
+  } elseif (-not [string]::IsNullOrWhiteSpace($passwordToUse)) {
+    if ($passwordToUse -match '^\[E\]') {
+      Write-Host "  DMPassword:         ***ENCRYPTED*** (from config.json)" -ForegroundColor Gray
     } else {
-      Write-Host "  DMPassword:         ***PROVIDED***" -ForegroundColor Yellow
+      Write-Host "  DMPassword:         ***PROVIDED*** (from config.json)" -ForegroundColor Yellow
     }
   } else {
     Write-Host "  DMPassword:         <not provided>" -ForegroundColor Gray
@@ -175,9 +204,9 @@ try {
         $commonParams['LogPath'] = $config.LogPath
       }
       
-      # Only add DMPassword if it's not empty
-      if (-not [string]::IsNullOrWhiteSpace($config.DMPassword)) {
-        $commonParams['DMPassword'] = $config.DMPassword
+      # Only add DMPassword if it's not empty (use dialog password if provided, else config)
+      if (-not [string]::IsNullOrWhiteSpace($passwordToUse)) {
+        $commonParams['DMPassword'] = $passwordToUse
       }
       
       # Add switches ONLY if they are TRUE (don't add false switches)
