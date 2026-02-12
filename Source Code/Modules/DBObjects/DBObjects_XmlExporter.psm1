@@ -32,7 +32,7 @@ function Export-ToNormalXml {
   )
 
   # Generate timestamp prefix
-  $timestamp = Get-Date -Format "000_yyyy_MM_dd"
+  $timestamp = Get-Date -Format "000_yyyy_MM_dd_HH"
 
   # Namespace per DM Objects schema
   $nsDefault = "http://www.intragen.com/xsd/XmlObjectSchema"
@@ -52,7 +52,7 @@ function Export-ToNormalXml {
   }
 
   # Generate output filename with timestamp
-  $outFile = Join-Path $OutPath "DBObjects.xml"
+  $outFile = Join-Path $OutPath "000-DBObjects_$timestamp.xml"
 
   # Configure XML writer
   $settings = New-Object System.Xml.XmlWriterSettings
@@ -60,8 +60,8 @@ function Export-ToNormalXml {
   $settings.OmitXmlDeclaration = $false
   $settings.Encoding = New-Object System.Text.UTF8Encoding($false)
 
-  $sw = New-Object System.IO.StringWriter
-  $xw = [System.Xml.XmlWriter]::Create($sw, $settings)
+  $ms = New-Object System.IO.MemoryStream
+  $xw = [System.Xml.XmlWriter]::Create($ms, $settings)
 
   try {
     $xw.WriteStartDocument()
@@ -73,9 +73,12 @@ function Export-ToNormalXml {
     # <Keys>
     $xw.WriteStartElement("Keys", $nsDefault)
     foreach ($tableName in $keyMap.Keys) {
-      $xw.WriteStartElement($tableName, $nsDefault)
-      $xw.WriteString([string]$keyMap[$tableName])
-      $xw.WriteEndElement()
+      $pkNames = @($keyMap[$tableName])
+      foreach ($pkName in $pkNames) {
+        $xw.WriteStartElement($tableName, $nsDefault)
+        $xw.WriteString([string]$pkName)
+        $xw.WriteEndElement()
+      }
     }
     $xw.WriteEndElement() # </Keys>
 
@@ -85,21 +88,12 @@ function Export-ToNormalXml {
 
       $xw.WriteStartElement($obj.TableName, $nsDefault)
 
-      # Write PK first
-      if (-not [string]::IsNullOrWhiteSpace($obj.PkName)) {
-        for ($i = 0; $i -lt $obj.PkName.Length; $i++){        
-          $xw.WriteStartElement($obj.PkName[i], $nsDefault)
-          if ($null -ne $obj.PkValue) {$xw.WriteString([string]$obj.PkValue[i])}
-        }
-            $xw.WriteEndElement()
-      }
-    
-            
-      
+      # Build list of PK names for skipping duplicates
+      $pkNames = @($obj.PkName)
 
-      # Write other columns
+      # Write other columns (PKs will be written here as FK-nested if applicable)
       foreach ($col in $obj.Columns) {
-        if ([string]::IsNullOrWhiteSpace($col.Name)-or $col.Name -eq $obj.PkName ) { continue }
+        if ([string]::IsNullOrWhiteSpace($col.Name)) { continue }
 
         $xw.WriteStartElement($col.Name, $nsDefault)
         
@@ -131,7 +125,6 @@ function Export-ToNormalXml {
     }
 
     $xw.WriteEndElement() # </Objects>
-  }
     $xw.WriteEndDocument()
   }
   finally {
@@ -139,7 +132,11 @@ function Export-ToNormalXml {
     $xw.Close()
   }
 
-  $xmlString = $sw.ToString()
+  $ms.Position = 0
+  $sr = New-Object System.IO.StreamReader($ms, (New-Object System.Text.UTF8Encoding($false)))
+  $xmlString = $sr.ReadToEnd()
+  $sr.Close()
+  $ms.Close()
 
   # Write to file (UTF-8 without BOM)
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

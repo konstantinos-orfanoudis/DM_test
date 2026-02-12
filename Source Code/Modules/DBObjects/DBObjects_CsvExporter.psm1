@@ -57,8 +57,7 @@ function Export-ToCsvMode {
     [switch]$PreviewXml
   )
 
-  # Generate timestamp prefix
-  $timestamp = Get-Date -Format "000_yyyy_MM_dd"
+
 
   # Build key map: TableName -> PKName
   $keyMap = [ordered]@{}
@@ -122,8 +121,8 @@ function Export-ToCsvMode {
 
   foreach ($tableName in $columnsByTable.Keys) {
     # Paths for this table with timestamp
-    $tableXmlPath = Join-Path $OutPath "${timestamp}_${tableName}.xml"
-    $tableCsvPath = Join-Path $OutPath "${timestamp}_${tableName}.csv"
+    $tableXmlPath = Join-Path $OutPath "Template_${tableName}.xml"
+    $tableCsvPath = Join-Path $OutPath "000-${tableName}.csv"
 
     # Get column order for this table
     $columnOrder = @($columnsByTable[$tableName].Keys)
@@ -136,8 +135,9 @@ function Export-ToCsvMode {
     $settings.OmitXmlDeclaration = $false
     $settings.Encoding = New-Object System.Text.UTF8Encoding($false)
 
-    $sw = New-Object System.IO.StringWriter
-    $xw = [System.Xml.XmlWriter]::Create($sw, $settings)
+    $ms = New-Object System.IO.MemoryStream
+    $streamWriter = New-Object System.IO.StreamWriter($ms, (New-Object System.Text.UTF8Encoding($false)))
+    $xw = [System.Xml.XmlWriter]::Create($streamWriter, $settings)
 
     try {
       $xw.WriteStartDocument()
@@ -191,7 +191,9 @@ function Export-ToCsvMode {
       $xw.Close()
     }
 
-    $xmlString = $sw.ToString()
+    $xmlString = [System.Text.Encoding]::UTF8.GetString($ms.ToArray())
+    $streamWriter.Dispose()
+    $ms.Dispose()
 
     # Write XML to file (UTF-8 without BOM)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
