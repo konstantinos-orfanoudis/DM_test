@@ -123,6 +123,7 @@ function Get-AllDbObjectsFromChangeContent {
   }
  
   $allObjects = New-Object System.Collections.Generic.List[object]
+
  
   foreach ($changeCol in $changeColumns) {
     $rawXml = Get-ColumnValue -ColumnNode $changeCol
@@ -161,7 +162,6 @@ function Get-AllDbObjectsFromChangeContent {
  
         # Extract primary key info
         $pkPropNode = $tableNode.SelectNodes('./Prop')
-        write-host "$pkPropNode >>>>>>>>>>>>>>>>>>>>>> 164line"
         
         $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null } 
         $pkValue = if ($pkPropNode) {
@@ -266,15 +266,25 @@ function Get-AllDbObjectsFromChangeContent {
  
     if ([string]::IsNullOrWhiteSpace($tableName)) 
     { continue }
-    ########################
+
     $s = Open-QSql
-    $wc = "SELECT  ColumnName FROM DialogColumn WHERE IsPKMember = 1 AND UID_DialogTable IN (SELECT 
-                                                                  UID_DialogTable FROM DialogTable where TableName = '$tableName')"
-     write-host "LINE 271 WORKED ////////////////////////////////////////////////////////////"                                                                                                                              
-    $pr = Find-QSql $wc -dict 
-    $pkcolumnName = $pr["ColumnName"]
+    $wc = "SELECT  ColumnName 
+           FROM DialogColumn 
+           WHERE 1=1 AND 
+            IsPKMember = 1 AND 
+            UID_DialogTable IN 
+              (
+              SELECT UID_DialogTable 
+              FROM DialogTable  
+              Where TableName = '$tableName' and 
+                                TableName not in ('Job', 'JobChain', 'JobEventGen', 'JobRunParameter', 'DialogColumn','DialogScript'))"                                                                                                                             
+    $pr = Find-QSql $wc -dict
+    if ($pr) {
+      $pkcolumnName = $pr["ColumnName"]
+    }
+    else {return New-Object System.Collections.Generic.List[object]}
     Close-QSql
-    ################################
+
     # Create object structure (PkName is not present in ObjectKey; leave null)
     $diffObj = [pscustomobject]([ordered]@{
       TableName = $tableName
@@ -283,7 +293,6 @@ function Get-AllDbObjectsFromChangeContent {
 
       Columns   = New-Object System.Collections.Generic.List[pscustomobject]
     })
-    write-host "$pkValue !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
  
     # Convert Diff Ops into columns
     $ops = $diffRoot.SelectNodes('./Op')

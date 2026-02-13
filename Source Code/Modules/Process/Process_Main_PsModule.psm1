@@ -89,7 +89,7 @@ try {
   # Step 3: Export Process
   if ($processes.Count -gt 0) {
     
-    
+    $counter = 000
     foreach($pr in $processes){
       $ProcessName = $pr.Name
       $TableName = $pr.TableName
@@ -97,10 +97,14 @@ try {
       if (-not (Test-Path $outpathfolder)) {
           New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
       }
-      $ProcessOutPath = Join-Path  $outpathfolder "$ProcessName.xml"    
+      $ProcessOutPath = ('{0:D3}-{1}' -f ($counter), $ProcessName) 
+      $ProcessOutPath = Join-Path  $outpathfolder "$ProcessOutPath.xml"
+         
       Write-Host "  Exporting process: $ProcessName ($TableName)" -ForegroundColor Gray
       $Logger.info("Exporting process: $ProcessName ($TableName)")
       Export-Process -Name $ProcessName -TableName $TableName -OutFilePath $ProcessOutPath
+      
+      $counter++ 
     }
     $Logger = Get-Logger
     $Logger.info("Exporting to: $outpathfolder")
