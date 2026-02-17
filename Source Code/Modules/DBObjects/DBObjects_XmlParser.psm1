@@ -219,6 +219,7 @@ function Get-AllDbObjectsFromChangeContent {
           $valText = if ($valNode) { $valNode.InnerText } else { '' }
  
           if ($IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($valText)) {
+             
             $obj.Columns.Add([pscustomobject]@{
               Name         = $colName
               Value        = $valText
@@ -226,7 +227,7 @@ function Get-AllDbObjectsFromChangeContent {
             })
           }
         }
- 
+
         $allObjects.Add($obj)
       }
  

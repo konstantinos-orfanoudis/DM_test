@@ -32,6 +32,7 @@ function Get-ColumnPermissionsPsModule {
 
   try {
     $connection = $session.Connection
+    
 
     # Convert to hashtable
     $allowedByTable = @{}
@@ -39,17 +40,25 @@ function Get-ColumnPermissionsPsModule {
     $Logger.info("The selected teable(s):")
     foreach ($selectedTableName in $Tables) {
       Write-Host  $selectedTableName
-      $selectedTables = $connection.Tables  | Where-Object { $_.TableName -eq $selectedTableName }
-      Write-Host $selectedTables
-      $Logger.info($selectedTables)
-      $columns = $selectedTables.Columns
+      $xobjk = find-Qsql "Select TOP 1 XObjectKey FROM $selectedTableName"
+      $result = Get-QObject $selectedTableName "XObjectKey" $xobjk
+      Write-Host $result
+      $Logger.info($result)
+      $columns = $result.Columns
       $allowedColumns = [System.Collections.Generic.List[string]]::new()
 
       foreach ($selectedColumn in $columns) {
-        if($selectedColumn.canInsert.AnyBitSet){
+
+        if(-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ') ){
+          $a = $selectedColumn.ColumnName
+          write-host $a + "++++++++++++++++++++++++++"
+
+
           $allowedColumns.Add($selectedColumn.columnName)
         }
-        
+        else{$a = $selectedColumn.ColumnName
+        $b=$selectedColumn.canEditDisallowedBy
+          write-host $a + "  "+$b + "---------------------------"}
       }
 
       
@@ -89,26 +98,35 @@ function Filter-DbObjectsByAllowedColumnsPsModule {
     # If table not in permissions, remove all columns
     if (-not $AllowedColumnsByTable.ContainsKey($obj.TableName)) {
       $obj.Columns = New-Object System.Collections.Generic.List[pscustomobject]
-      write-host " $AllowedColumnsByTable xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
       continue
     }
-
+    $li = $obj.Columns
+    #write-host "$li ///////////////////////////////////////////////////"
     # Create case-insensitive hashset of allowed columns
     $allowedSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($col in $AllowedColumnsByTable[$obj.TableName]) {
-      [void]$allowedSet.Add($col)
+      $s = $col
+      $t = $obj.TableName
+      #write-host "$t - $s #####################################################" 
+      [void]$allowedSet.Add(($col -as [string]).Trim())
+     # write-host "$allowedSet ooooooooooooooooooooooooooooooo"
     }
-    write-host " $allowedSet kkkkkkkkkkkkkkkkkkkkkkkkkkk"
+
 
     # Filter columns
     $filteredCols = New-Object System.Collections.Generic.List[pscustomobject]
     foreach ($col in $obj.Columns) {
+      $s = $col.Name
+      $t = $obj.TableName
+      #write-host "$t - $s #####################################################"
       if ($col.Name -and $allowedSet.Contains($col.Name)) {
+        $t = $obj.TableName
+        $s = $col.Name
         $filteredCols.Add($col)
+        #write-host "$t - $s #####################################################"
       }
     }
-    write-host " $filteredCols @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
     $obj.Columns = $filteredCols
   }
 
