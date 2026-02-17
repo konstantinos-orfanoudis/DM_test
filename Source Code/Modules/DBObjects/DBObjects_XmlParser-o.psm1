@@ -123,7 +123,7 @@ function Get-AllDbObjectsFromChangeContent {
   }
  
   $allObjects = New-Object System.Collections.Generic.List[object]
- 
+
  
   foreach ($changeCol in $changeColumns) {
     $rawXml = Get-ColumnValue -ColumnNode $changeCol
@@ -162,13 +162,13 @@ function Get-AllDbObjectsFromChangeContent {
  
         # Extract primary key info
         $pkPropNode = $tableNode.SelectNodes('./Prop')
-       
-        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null }
+        
+        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null } 
         $pkValue = if ($pkPropNode) {
           $v = $pkPropNode.SelectSingleNode('./Value')
           if ($v) { $v.InnerText -split " " } else { $null }
         } else { $null }
-       
+        
  
         # Create object structure
         $obj = [pscustomobject]([ordered]@{
@@ -227,7 +227,7 @@ function Get-AllDbObjectsFromChangeContent {
             })
           }
         }
- 
+
         $allObjects.Add($obj)
       }
  
@@ -265,33 +265,33 @@ function Get-AllDbObjectsFromChangeContent {
     $tableName = if ($tNode) { $tNode.InnerText.Trim() } else { $null }
     $pkValue   = if ($pNode) { $pNode.InnerText.Trim() } else { $null }
  
-    if ([string]::IsNullOrWhiteSpace($tableName))
+    if ([string]::IsNullOrWhiteSpace($tableName)) 
     { continue }
- 
+
     $s = Open-QSql
-    $wc = "SELECT  ColumnName
-           FROM DialogColumn
-           WHERE 1=1 AND
-            IsPKMember = 1 AND
-            UID_DialogTable IN
+    $wc = "SELECT  ColumnName 
+           FROM DialogColumn 
+           WHERE 1=1 AND 
+            IsPKMember = 1 AND 
+            UID_DialogTable IN 
               (
-              SELECT UID_DialogTable
+              SELECT UID_DialogTable 
               FROM DialogTable  
-              Where TableName = '$tableName' and
-                                TableName not in ('Job', 'JobChain', 'JobEventGen', 'JobRunParameter', 'DialogColumn','DialogScript'))"                                                                                                                            
+              Where TableName = '$tableName' and 
+                                TableName not in ('Job', 'JobChain', 'JobEventGen', 'JobRunParameter', 'DialogColumn','DialogScript'))"                                                                                                                             
     $pr = Find-QSql $wc -dict
     if ($pr) {
       $pkcolumnName = $pr["ColumnName"]
     }
     else {return New-Object System.Collections.Generic.List[object]}
     Close-QSql
- 
+
     # Create object structure (PkName is not present in ObjectKey; leave null)
     $diffObj = [pscustomobject]([ordered]@{
       TableName = $tableName
       PkName    = $pkcolumnName
       PkValue   = $pkValue
- 
+
       Columns   = New-Object System.Collections.Generic.List[pscustomobject]
     })
  
@@ -320,149 +320,10 @@ function Get-AllDbObjectsFromChangeContent {
     $allObjects.Add($diffObj)
   }
   return $allObjects
- 
-}
- 
-function Get-ForeignKeyMetadataPsModule {
-  <#
-  .SYNOPSIS
-    Retrieves foreign key column metadata for specified tables from OIM connection.
-   
-  .DESCRIPTION
-    Uses $connection.Tables.ForeignKeys.ColumnRelations to discover which columns
-    in each table are foreign keys, and what parent table/column they reference.
-    This is used to enrich parsed DbObjects where the XML may not contain the
-    Key/Table FK structure (e.g., when FK value is empty).
- 
-  .PARAMETER Session
-    Authenticated session from Connect-OimPSModule.
- 
-  .PARAMETER Tables
-    Array of table names to query FK metadata for.
- 
-  .OUTPUTS
-    Hashtable: TableName -> Hashtable: ColumnName -> PSCustomObject{FkTableName, FkColumnName}
-  #>
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [Object]$Session,
- 
-    [Parameter(Mandatory)]
-    [string[]]$Tables
-  )
- 
-  try {
-    $connection = $Session.Connection
-    $fkMetaByTable = @{}
- 
-    foreach ($tableName in $Tables) {
-      $tableObj = $connection.Tables | Where-Object { $_.TableName -eq $tableName }
-      if (-not $tableObj) {
-        Write-Warning "Table '$tableName' not found in connection metadata - skipping FK discovery."
-        continue
-      }
- 
-      $fkMap = @{}
-      $foreignKeys = $tableObj.ForeignKeys
-      if (-not $foreignKeys) {
-        $fkMetaByTable[$tableName] = $fkMap
-        continue
-      }
- 
-      foreach ($fk in $foreignKeys) {
-        $columnRelations = $fk.ColumnRelations
-        if (-not $columnRelations) { continue }
- 
-        foreach ($rel in $columnRelations) {
-          # ChildColumn format: "ChildTable.ColumnName" (e.g. "PWODecisionStep.UID_DialogRichMailToDelegat")
-          $childCol = [string]$rel.ChildColumn
-          # ParentColumn format: "ParentTable.PKColumn" (e.g. "DialogRichMail.UID_DialogRichMail")
-          $parentCol = [string]$rel.ParentColumn
- 
-          if ([string]::IsNullOrWhiteSpace($childCol) -or [string]::IsNullOrWhiteSpace($parentCol)) { continue }
- 
-          $childParts  = $childCol -split '\.'
-          $parentParts = $parentCol -split '\.'
- 
-          # Extract the column name in our table (child side)
-          $colName = if ($childParts.Count -ge 2) { $childParts[1] } else { $childParts[0] }
-          # Extract parent table and column names
-          $fkTable  = if ($parentParts.Count -ge 2) { $parentParts[0] } else { $null }
-          $fkColumn = if ($parentParts.Count -ge 2) { $parentParts[1] } else { $parentParts[0] }
- 
-          if (-not [string]::IsNullOrWhiteSpace($colName) -and -not $fkMap.ContainsKey($colName)) {
-            $fkMap[$colName] = [pscustomobject]@{
-              FkTableName  = $fkTable
-              FkColumnName = $fkColumn
-            }
-          }
-        }
-      }
- 
-      $fkMetaByTable[$tableName] = $fkMap
-      Write-Host "  FK metadata for '$tableName': $($fkMap.Count) FK column(s) discovered" -ForegroundColor DarkCyan
-    }
- 
-    return $fkMetaByTable
-  }
-  catch {
-    $Logger = Get-Logger
-    $Logger.info("Failed to retrieve FK metadata: $_")
-    throw "Failed to retrieve FK metadata: $_"
-  }
-}
- 
-function Enrich-DbObjectsWithFkMetadata {
-  <#
-  .SYNOPSIS
-    Enriches parsed DbObjects with FK metadata from connection discovery.
-   
-  .DESCRIPTION
-    For columns that were parsed as normal (IsForeignKey=$false) but are actually
-    foreign keys according to the connection metadata, this function updates them
-    to carry the correct FK structure (IsForeignKey, FkTableName, FkColumnName).
-    This handles the case where the XML has no Key/Table child for empty FK columns.
- 
-  .PARAMETER DbObjects
-    Array of parsed DbObjects to enrich.
- 
-  .PARAMETER FkMetaByTable
-    Hashtable from Get-ForeignKeyMetadataPsModule.
- 
-  .OUTPUTS
-    The same DbObjects array, with columns enriched in-place.
-  #>
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][object[]]$DbObjects,
-    [Parameter(Mandatory)][hashtable]$FkMetaByTable
-  )
- 
-  foreach ($obj in $DbObjects) {
-    if (-not $FkMetaByTable.ContainsKey($obj.TableName)) { continue }
- 
-    $fkMap = $FkMetaByTable[$obj.TableName]
- 
-    foreach ($col in $obj.Columns) {
-      # Only enrich columns not already marked as FK
-      if ($col.IsForeignKey) { continue }
- 
-      if ($fkMap.ContainsKey($col.Name)) {
-        $meta = $fkMap[$col.Name]
-        $col | Add-Member -NotePropertyName 'IsForeignKey' -NotePropertyValue $true -Force
-        $col | Add-Member -NotePropertyName 'FkTableName'  -NotePropertyValue $meta.FkTableName -Force
-        $col | Add-Member -NotePropertyName 'FkColumnName' -NotePropertyValue $meta.FkColumnName -Force
-      }
-    }
-  }
- 
-  return $DbObjects
+
 }
  
 # Export module members
 Export-ModuleMember -Function @(
-  'Get-AllDbObjectsFromChangeContent',
-  'Get-ForeignKeyMetadataPsModule',
-  'Enrich-DbObjectsWithFkMetadata'
+  'Get-AllDbObjectsFromChangeContent'
 )
