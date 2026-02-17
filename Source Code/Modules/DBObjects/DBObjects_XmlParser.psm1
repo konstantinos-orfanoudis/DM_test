@@ -123,7 +123,7 @@ function Get-AllDbObjectsFromChangeContent {
   }
  
   $allObjects = New-Object System.Collections.Generic.List[object]
- 
+
  
   foreach ($changeCol in $changeColumns) {
     $rawXml = Get-ColumnValue -ColumnNode $changeCol
@@ -162,13 +162,13 @@ function Get-AllDbObjectsFromChangeContent {
  
         # Extract primary key info
         $pkPropNode = $tableNode.SelectNodes('./Prop')
-       
-        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null }
+        
+        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null } 
         $pkValue = if ($pkPropNode) {
           $v = $pkPropNode.SelectSingleNode('./Value')
           if ($v) { $v.InnerText -split " " } else { $null }
         } else { $null }
-       
+        
  
         # Create object structure
         $obj = [pscustomobject]([ordered]@{
@@ -178,16 +178,25 @@ function Get-AllDbObjectsFromChangeContent {
           Columns   = New-Object System.Collections.Generic.List[pscustomobject]
         })
  
-        # Extract column data
+        # Build PK lookup for marking and value override
+        $pkNameSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $pkValueMap = @{}
+        if ($pkName) {
+          $pkNames = @($pkName)
+          $pkVals  = @($pkValue)
+          for ($i = 0; $i -lt $pkNames.Count; $i++) {
+            [void]$pkNameSet.Add($pkNames[$i])
+            if ($i -lt $pkVals.Count) { $pkValueMap[$pkNames[$i]] = $pkVals[$i] }
+          }
+        }
+
+        # Extract column data — PKs are kept in parse order (not skipped)
         $columns = $dbo.SelectNodes('./Columns/Column')
         foreach ($col in $columns) {
           $colName = $col.GetAttribute('Name')
           if ([string]::IsNullOrWhiteSpace($colName)) { continue }
  
-          # Skip primary key column - it's already written separately
-          if (-not [string]::IsNullOrWhiteSpace($pkName) -and $colName -eq $pkName) {
-            continue
-          }
+          $isPk = $pkNameSet.Contains($colName)
  
           # Check if it's a foreign key column
           $fkTableNode = $col.SelectSingleNode('./Key/Table')
@@ -199,35 +208,41 @@ function Get-AllDbObjectsFromChangeContent {
               $rv = $refProp.SelectSingleNode('./Value')
               if ($rv) { $rv.InnerText } else { '' }
             } else { '' }
- 
-            if ($IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($refVal)) {
-              # Store as foreign key reference with metadata
+
+            # PK columns are always included; other FKs respect IncludeEmptyValues
+            if ($isPk -or $IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($refVal)) {
+              # Use authoritative PkValue for PK columns
+              $finalVal = if ($isPk -and $pkValueMap.ContainsKey($colName)) { $pkValueMap[$colName] } else { $refVal }
               $obj.Columns.Add([pscustomobject]@{
                 Name         = $colName
-                Value        = $refVal
+                Value        = $finalVal
                 IsForeignKey = $true
+                IsPrimaryKey = $isPk
                 FkTableName  = $fkTableName
                 FkColumnName = $refPkName
               })
             }
- 
+
             continue
           }
- 
+
           # Normal column value
           $valNode = $col.SelectSingleNode('./Value')
           $valText = if ($valNode) { $valNode.InnerText } else { '' }
- 
-          if ($IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($valText)) {
-             
+
+          # PK columns are always included; other columns respect IncludeEmptyValues
+          if ($isPk -or $IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($valText)) {
+            # Use authoritative PkValue for PK columns
+            $finalVal = if ($isPk -and $pkValueMap.ContainsKey($colName)) { $pkValueMap[$colName] } else { $valText }
             $obj.Columns.Add([pscustomobject]@{
               Name         = $colName
-              Value        = $valText
+              Value        = $finalVal
               IsForeignKey = $false
+              IsPrimaryKey = $isPk
             })
           }
         }
- 
+
         $allObjects.Add($obj)
       }
  
@@ -265,33 +280,33 @@ function Get-AllDbObjectsFromChangeContent {
     $tableName = if ($tNode) { $tNode.InnerText.Trim() } else { $null }
     $pkValue   = if ($pNode) { $pNode.InnerText.Trim() } else { $null }
  
-    if ([string]::IsNullOrWhiteSpace($tableName))
+    if ([string]::IsNullOrWhiteSpace($tableName)) 
     { continue }
- 
+
     $s = Open-QSql
-    $wc = "SELECT  ColumnName
-           FROM DialogColumn
-           WHERE 1=1 AND
-            IsPKMember = 1 AND
-            UID_DialogTable IN
+    $wc = "SELECT  ColumnName 
+           FROM DialogColumn 
+           WHERE 1=1 AND 
+            IsPKMember = 1 AND 
+            UID_DialogTable IN 
               (
-              SELECT UID_DialogTable
+              SELECT UID_DialogTable 
               FROM DialogTable  
-              Where TableName = '$tableName' and
-                                TableName not in ('Job', 'JobChain', 'JobEventGen', 'JobRunParameter', 'DialogColumn','DialogScript'))"                                                                                                                            
+              Where TableName = '$tableName' and 
+                                TableName not in ('Job', 'JobChain', 'JobEventGen', 'JobRunParameter', 'DialogColumn','DialogScript'))"                                                                                                                             
     $pr = Find-QSql $wc -dict
     if ($pr) {
       $pkcolumnName = $pr["ColumnName"]
     }
     else {return New-Object System.Collections.Generic.List[object]}
     Close-QSql
- 
+
     # Create object structure (PkName is not present in ObjectKey; leave null)
     $diffObj = [pscustomobject]([ordered]@{
       TableName = $tableName
       PkName    = $pkcolumnName
       PkValue   = $pkValue
- 
+
       Columns   = New-Object System.Collections.Generic.List[pscustomobject]
     })
  
@@ -314,32 +329,33 @@ function Get-AllDbObjectsFromChangeContent {
           OldValue     = $oldVal
           IsDiffOp     = $true
           IsForeignKey = $false
+          IsPrimaryKey = $false
         })
       }
     }
     $allObjects.Add($diffObj)
   }
   return $allObjects
- 
+
 }
- 
+
 function Get-ForeignKeyMetadataPsModule {
   <#
   .SYNOPSIS
     Retrieves foreign key column metadata for specified tables from OIM connection.
-   
+    
   .DESCRIPTION
     Uses $connection.Tables.ForeignKeys.ColumnRelations to discover which columns
     in each table are foreign keys, and what parent table/column they reference.
     This is used to enrich parsed DbObjects where the XML may not contain the
     Key/Table FK structure (e.g., when FK value is empty).
- 
+  
   .PARAMETER Session
     Authenticated session from Connect-OimPSModule.
- 
+  
   .PARAMETER Tables
     Array of table names to query FK metadata for.
- 
+  
   .OUTPUTS
     Hashtable: TableName -> Hashtable: ColumnName -> PSCustomObject{FkTableName, FkColumnName}
   #>
@@ -347,50 +363,50 @@ function Get-ForeignKeyMetadataPsModule {
   param(
     [Parameter(Mandatory)]
     [Object]$Session,
- 
+
     [Parameter(Mandatory)]
     [string[]]$Tables
   )
- 
+
   try {
     $connection = $Session.Connection
     $fkMetaByTable = @{}
- 
+
     foreach ($tableName in $Tables) {
       $tableObj = $connection.Tables | Where-Object { $_.TableName -eq $tableName }
       if (-not $tableObj) {
         Write-Warning "Table '$tableName' not found in connection metadata - skipping FK discovery."
         continue
       }
- 
+
       $fkMap = @{}
       $foreignKeys = $tableObj.ForeignKeys
       if (-not $foreignKeys) {
         $fkMetaByTable[$tableName] = $fkMap
         continue
       }
- 
+
       foreach ($fk in $foreignKeys) {
         $columnRelations = $fk.ColumnRelations
         if (-not $columnRelations) { continue }
- 
+
         foreach ($rel in $columnRelations) {
           # ChildColumn format: "ChildTable.ColumnName" (e.g. "PWODecisionStep.UID_DialogRichMailToDelegat")
           $childCol = [string]$rel.ChildColumn
           # ParentColumn format: "ParentTable.PKColumn" (e.g. "DialogRichMail.UID_DialogRichMail")
           $parentCol = [string]$rel.ParentColumn
- 
+
           if ([string]::IsNullOrWhiteSpace($childCol) -or [string]::IsNullOrWhiteSpace($parentCol)) { continue }
- 
+
           $childParts  = $childCol -split '\.'
           $parentParts = $parentCol -split '\.'
- 
+
           # Extract the column name in our table (child side)
           $colName = if ($childParts.Count -ge 2) { $childParts[1] } else { $childParts[0] }
           # Extract parent table and column names
           $fkTable  = if ($parentParts.Count -ge 2) { $parentParts[0] } else { $null }
           $fkColumn = if ($parentParts.Count -ge 2) { $parentParts[1] } else { $parentParts[0] }
- 
+
           if (-not [string]::IsNullOrWhiteSpace($colName) -and -not $fkMap.ContainsKey($colName)) {
             $fkMap[$colName] = [pscustomobject]@{
               FkTableName  = $fkTable
@@ -399,11 +415,11 @@ function Get-ForeignKeyMetadataPsModule {
           }
         }
       }
- 
+
       $fkMetaByTable[$tableName] = $fkMap
       Write-Host "  FK metadata for '$tableName': $($fkMap.Count) FK column(s) discovered" -ForegroundColor DarkCyan
     }
- 
+
     return $fkMetaByTable
   }
   catch {
@@ -412,24 +428,24 @@ function Get-ForeignKeyMetadataPsModule {
     throw "Failed to retrieve FK metadata: $_"
   }
 }
- 
+
 function Enrich-DbObjectsWithFkMetadata {
   <#
   .SYNOPSIS
     Enriches parsed DbObjects with FK metadata from connection discovery.
-   
+    
   .DESCRIPTION
     For columns that were parsed as normal (IsForeignKey=$false) but are actually
     foreign keys according to the connection metadata, this function updates them
     to carry the correct FK structure (IsForeignKey, FkTableName, FkColumnName).
     This handles the case where the XML has no Key/Table child for empty FK columns.
- 
+  
   .PARAMETER DbObjects
     Array of parsed DbObjects to enrich.
- 
+  
   .PARAMETER FkMetaByTable
     Hashtable from Get-ForeignKeyMetadataPsModule.
- 
+  
   .OUTPUTS
     The same DbObjects array, with columns enriched in-place.
   #>
@@ -438,16 +454,16 @@ function Enrich-DbObjectsWithFkMetadata {
     [Parameter(Mandatory)][object[]]$DbObjects,
     [Parameter(Mandatory)][hashtable]$FkMetaByTable
   )
- 
+
   foreach ($obj in $DbObjects) {
     if (-not $FkMetaByTable.ContainsKey($obj.TableName)) { continue }
- 
+
     $fkMap = $FkMetaByTable[$obj.TableName]
- 
+
     foreach ($col in $obj.Columns) {
       # Only enrich columns not already marked as FK
       if ($col.IsForeignKey) { continue }
- 
+
       if ($fkMap.ContainsKey($col.Name)) {
         $meta = $fkMap[$col.Name]
         $col | Add-Member -NotePropertyName 'IsForeignKey' -NotePropertyValue $true -Force
@@ -456,13 +472,167 @@ function Enrich-DbObjectsWithFkMetadata {
       }
     }
   }
- 
+
   return $DbObjects
+}
+
+function Sort-DbObjectsByDependency {
+  <#
+  .SYNOPSIS
+    Sorts DbObjects so that referenced objects come before the objects that reference them.
+
+  .DESCRIPTION
+    Performs a topological sort on DbObjects based on FK column values.
+    For each object, if an FK column value matches the PK value of another object
+    in the set, that other object is treated as a dependency and placed earlier.
+    Objects with no internal dependencies are placed first.
+    This ensures Deployment Manager can import objects without reference errors.
+
+    Only single (non-composite) PK values are registered as referenceable targets.
+    Composite PK components (e.g., junction table FKs) are not registered to avoid
+    false circular dependencies between rows sharing a PK component value.
+
+  .PARAMETER DbObjects
+    Array of parsed DbObjects to sort.
+
+  .OUTPUTS
+    Sorted array of DbObjects (dependencies first).
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][object[]]$DbObjects
+  )
+
+  if (-not $DbObjects -or $DbObjects.Count -le 1) { return $DbObjects }
+
+  # Step 1: Build a lookup of PK values -> list of object indices
+  # ONLY register single (non-composite) PK values.
+  # Composite PK parts (arrays) are FK references themselves and should NOT
+  # be registered — they would cause false circular deps between junction table rows.
+  $pkToIndices = @{}
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    $obj = $DbObjects[$i]
+
+    # Determine if PK is single or composite
+    $isSinglePk = $false
+    $pkVal = $null
+
+    if ($obj.PkValue -is [array]) {
+      if ($obj.PkValue.Count -eq 1) {
+        $isSinglePk = $true
+        $pkVal = [string]$obj.PkValue[0]
+      }
+      # Composite (Count > 1): skip registration
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($obj.PkValue)) {
+      $isSinglePk = $true
+      $pkVal = [string]$obj.PkValue
+    }
+
+    if ($isSinglePk -and -not [string]::IsNullOrWhiteSpace($pkVal)) {
+      if (-not $pkToIndices.ContainsKey($pkVal)) {
+        $pkToIndices[$pkVal] = [System.Collections.Generic.List[int]]::new()
+      }
+      $pkToIndices[$pkVal].Add($i)
+    }
+  }
+
+  # Step 2: Build adjacency list (dependency graph)
+  # For each object, check all column values against the PK lookup
+  $deps = @{}
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    $deps[$i] = [System.Collections.Generic.HashSet[int]]::new()
+  }
+
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    $obj = $DbObjects[$i]
+    foreach ($col in $obj.Columns) {
+      if ([string]::IsNullOrWhiteSpace($col.Value)) { continue }
+
+      $valStr = [string]$col.Value
+      if ($pkToIndices.ContainsKey($valStr)) {
+        foreach ($depIdx in $pkToIndices[$valStr]) {
+          if ($depIdx -ne $i) {
+            [void]$deps[$i].Add($depIdx)
+          }
+        }
+      }
+    }
+
+    # For composite PK tables (junction tables), the FK dependencies are in the
+    # PK values themselves (not in Columns). Check composite PK values against
+    # objects of a DIFFERENT table to avoid false circular deps between rows
+    # sharing a PK component.
+    if ($obj.PkValue -is [array] -and $obj.PkValue.Count -gt 1) {
+      foreach ($pv in $obj.PkValue) {
+        $pvStr = [string]$pv
+        if ([string]::IsNullOrWhiteSpace($pvStr)) { continue }
+        if (-not $pkToIndices.ContainsKey($pvStr)) { continue }
+
+        foreach ($depIdx in $pkToIndices[$pvStr]) {
+          if ($depIdx -ne $i -and $DbObjects[$depIdx].TableName -ne $obj.TableName) {
+            [void]$deps[$i].Add($depIdx)
+          }
+        }
+      }
+    }
+  }
+
+  # Step 3: Topological sort (Kahn's algorithm)
+  $inDegree = @{}
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    $inDegree[$i] = 0
+  }
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    foreach ($dep in $deps[$i]) {
+      $inDegree[$i]++
+    }
+  }
+
+  $queue = [System.Collections.Generic.Queue[int]]::new()
+  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+    if ($inDegree[$i] -eq 0) {
+      $queue.Enqueue($i)
+    }
+  }
+
+  $sorted = [System.Collections.Generic.List[object]]::new()
+  $visited = [System.Collections.Generic.HashSet[int]]::new()
+
+  while ($queue.Count -gt 0) {
+    $idx = $queue.Dequeue()
+    if (-not $visited.Add($idx)) { continue }
+
+    $sorted.Add($DbObjects[$idx])
+
+    for ($j = 0; $j -lt $DbObjects.Count; $j++) {
+      if ($deps[$j].Contains($idx)) {
+        $inDegree[$j]--
+        if ($inDegree[$j] -eq 0) {
+          $queue.Enqueue($j)
+        }
+      }
+    }
+  }
+
+  # If there are objects not yet placed (circular dependency), append them at the end
+  if ($sorted.Count -lt $DbObjects.Count) {
+    Write-Warning "Circular dependency detected among $($DbObjects.Count - $sorted.Count) object(s) - appending at end."
+    for ($i = 0; $i -lt $DbObjects.Count; $i++) {
+      if (-not $visited.Contains($i)) {
+        $sorted.Add($DbObjects[$i])
+      }
+    }
+  }
+
+  Write-Host "  Sorted $($sorted.Count) object(s) by dependency order" -ForegroundColor DarkCyan
+  return $sorted.ToArray()
 }
  
 # Export module members
 Export-ModuleMember -Function @(
   'Get-AllDbObjectsFromChangeContent',
   'Get-ForeignKeyMetadataPsModule',
-  'Enrich-DbObjectsWithFkMetadata'
+  'Enrich-DbObjectsWithFkMetadata',
+  'Sort-DbObjectsByDependency'
 )

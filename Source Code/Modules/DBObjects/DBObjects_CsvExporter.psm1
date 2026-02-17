@@ -61,6 +61,7 @@ function Export-ToCsvMode {
  
   # Build key map: TableName -> PKName (raw, may be composite with spaces)
   $keyMap = [ordered]@{}
+  
   foreach ($obj in $DbObjects) {
     if (-not $keyMap.Contains($obj.TableName) -and -not [string]::IsNullOrWhiteSpace($obj.PkName)) {
       $keyMap[$obj.TableName] = $obj.PkName
@@ -68,31 +69,18 @@ function Export-ToCsvMode {
   }
  
   # Build column schema: TableName -> ordered list of column objects with metadata
+  # Columns are added in parse order (PKs are now included in obj.Columns at their original position)
   $columnsByTable = [ordered]@{}
+  
   foreach ($obj in $DbObjects) {
     if ([string]::IsNullOrWhiteSpace($obj.TableName)) { continue }
    
     if (-not $columnsByTable.Contains($obj.TableName)) {
       $columnsByTable[$obj.TableName] = [ordered]@{}
     }
-   
-    # Add PK columns first (split composite PKs), then enrich with FK metadata from Columns
-    if (-not [string]::IsNullOrWhiteSpace($obj.PkName)) {
-      $pkParts = @(if (-not [string]::IsNullOrWhiteSpace($obj.PkName)) { $obj.PkName -split '\s+' } else { @() })
-      foreach ($pkPart in $pkParts) {
-        if (-not [string]::IsNullOrWhiteSpace($pkPart) -and
-            -not $columnsByTable[$obj.TableName].Contains($pkPart)) {
-          $columnsByTable[$obj.TableName][$pkPart] = [pscustomobject]@{
-            Name = $pkPart
-            IsForeignKey = $false
-            FkTableName = $null
-            FkColumnName = $null
-          }
-        }
-      }
-    }
 
-    # Add other columns - update FK metadata if PK was already added as non-FK
+    # Add columns in parse order (first object seen determines the order for each table)
+    
     foreach ($col in $obj.Columns) {
       if (-not [string]::IsNullOrWhiteSpace($col.Name)) {
         if (-not $columnsByTable[$obj.TableName].Contains($col.Name)) {
@@ -104,10 +92,26 @@ function Export-ToCsvMode {
           }
         }
         elseif ($col.IsForeignKey) {
-          # Update existing PK entry with FK metadata from Columns
+          # Update existing entry with FK metadata
           $columnsByTable[$obj.TableName][$col.Name].IsForeignKey = $col.IsForeignKey
           $columnsByTable[$obj.TableName][$col.Name].FkTableName = $col.FkTableName
           $columnsByTable[$obj.TableName][$col.Name].FkColumnName = $col.FkColumnName
+        }
+      }
+    }
+
+    # Safety: ensure any PK from PkName that wasn't in Columns still gets added
+    if ($obj.PkName) {
+      $pkParts = @($obj.PkName)
+      foreach ($pkPart in $pkParts) {
+        if (-not [string]::IsNullOrWhiteSpace($pkPart) -and
+            -not $columnsByTable[$obj.TableName].Contains($pkPart)) {
+          $columnsByTable[$obj.TableName][$pkPart] = [pscustomobject]@{
+            Name = $pkPart
+            IsForeignKey = $false
+            FkTableName = $null
+            FkColumnName = $null
+          }
         }
       }
     }
@@ -130,12 +134,17 @@ function Export-ToCsvMode {
   }
  
   #region Create Separate XML and CSV Per Table
- 
+ $counter = 0
   foreach ($tableName in $columnsByTable.Keys) {
     # Paths for this table with timestamp
     $tableXmlPath = Join-Path $OutPath "Template_${tableName}.xml"
-    $tableCsvPath = Join-Path $OutPath "000-${tableName}.csv"
+    $fileName = ('{0:D3}-{1}' -f ($counter + 1), $tableName)
+    $tableCsvPath = Join-Path $OutPath "$fileName.csv"
+    $counter++
  
+
+
+
     # Get column order for this table
     $columnOrder = @($columnsByTable[$tableName].Keys)
     $pkName = $keyMap[$tableName]

@@ -87,29 +87,17 @@ function Export-ToNormalXml {
       if ([string]::IsNullOrWhiteSpace($obj.TableName)) { continue }
  
       $xw.WriteStartElement($obj.TableName, $nsDefault)
+
+      # Track which PK parts have been written (from Columns list)
+      $pkParts = @(if ($obj.PkName) { @($obj.PkName) } else { @() })
+      $pkValues = @(if ($obj.PkValue) { @($obj.PkValue) } else { @() })
+      $writtenPkSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
  
-      # Split composite PK names and values
-      $pkParts = @(if (-not [string]::IsNullOrWhiteSpace($obj.PkName)) { $obj.PkName -split '\s+' } else { @() })
-      $pkValues = @(if (-not [string]::IsNullOrWhiteSpace($obj.PkValue)) { $obj.PkValue -split '\s+' } else { @() })
-      
-      # Build set of PK part names for skipping in Columns loop
-      $pkPartSet = @{}
-      foreach ($p in $pkParts) { $pkPartSet[$p] = $true }
-
-      # Always write PK elements first from PkName/PkValue
-      for ($i = 0; $i -lt $pkParts.Count; $i++) {
-        $pkPartName = $pkParts[$i]
-        $xw.WriteStartElement($pkPartName, $nsDefault)
-        if ($i -lt $pkValues.Count -and $null -ne $pkValues[$i]) {
-          $xw.WriteString([string]$pkValues[$i])
-        }
-        $xw.WriteEndElement()
-      }
-
-      # Write other columns (skip PK columns to avoid duplicates)
+      # Write all columns in parse order (PKs included at their original position)
       foreach ($col in $obj.Columns) {
         if ([string]::IsNullOrWhiteSpace($col.Name)) { continue }
-        if ($pkPartSet.ContainsKey($col.Name)) { continue }
+
+        if ($col.IsPrimaryKey) { [void]$writtenPkSet.Add($col.Name) }
  
         $xw.WriteStartElement($col.Name, $nsDefault)
        
@@ -135,6 +123,18 @@ function Export-ToNormalXml {
         }
        
         $xw.WriteEndElement() # </ColumnName>
+      }
+
+      # Safety: write any PK parts that were NOT in Columns (edge case)
+      for ($i = 0; $i -lt $pkParts.Count; $i++) {
+        $pkPartName = $pkParts[$i]
+        if (-not $writtenPkSet.Contains($pkPartName)) {
+          $xw.WriteStartElement($pkPartName, $nsDefault)
+          if ($i -lt $pkValues.Count -and $null -ne $pkValues[$i]) {
+            $xw.WriteString([string]$pkValues[$i])
+          }
+          $xw.WriteEndElement()
+        }
       }
  
       $xw.WriteEndElement() # </TableName>
