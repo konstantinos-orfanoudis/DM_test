@@ -1,0 +1,4 @@
+TableName,ColumnName
+AttestationPolicy,IsSetApprovalStateOnApproved
+AttestationPolicy,IsSetApprovalStateOnDenied
+AttestationPolicy,LimitOfOldCases
