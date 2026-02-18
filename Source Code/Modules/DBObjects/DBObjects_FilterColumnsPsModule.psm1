@@ -65,17 +65,33 @@ function Get-ColumnPermissionsPsModule {
       $allowedColumns = [System.Collections.Generic.List[string]]::new()
 
       foreach ($selectedColumn in $columns) {
-
-        if(-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ') ){
-         foreach ($ex in $Excluded)
-         {
-            if (-not ($ex.TableName -eq $selectedTableName -and $ex.ColumnName -eq $selectedColumn.ColumnName))
-            {         
-             $allowedColumns.Add($selectedColumn.columnName)
-            }
-        }       
-        }
+          if (-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ')) {
+              $isExcluded = $false
+              foreach ($ex in $Excluded) {
+                  if ($ex.TableName -eq $selectedTableName -and $ex.ColumnName -eq $selectedColumn.ColumnName) {
+                      $isExcluded = $true
+                      break
+                  }
+              }
+              if (-not $isExcluded) {
+                  $allowedColumns.Add($selectedColumn.columnName)
+              }
+          }
       }
+
+      # foreach ($selectedColumn in $columns) {
+
+      #   if(-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ') ){
+      #    foreach ($ex in $Excluded)
+      #    {
+      #       if (-not ($ex.TableName -eq $selectedTableName -and $ex.ColumnName -eq $selectedColumn.ColumnName))
+      #       { 
+                    
+      #        $allowedColumns.Add($selectedColumn.columnName)
+      #       }
+      #   }       
+      #   }
+      # }
       $allowedByTable[$selectedTableName] = $allowedColumns;
     }
     

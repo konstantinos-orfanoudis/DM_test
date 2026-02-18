@@ -170,11 +170,21 @@ function Get-AllDbObjectsFromChangeContent {
         } else { $null }
         
  
+        # Read SortOrder from the sibling column on the QBMTaggedChange wrapper row
+        $sortOrderCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='SortOrder']")
+        $sortOrderVal = if ($sortOrderCol) { Get-ColumnValue -ColumnNode $sortOrderCol } else { $null }
+        $sortOrderNum = [long]::MaxValue
+        if (-not [string]::IsNullOrWhiteSpace($sortOrderVal)) {
+          [long]$parsed = 0
+          if ([long]::TryParse($sortOrderVal, [ref]$parsed)) { $sortOrderNum = $parsed }
+        }
+
         # Create object structure
         $obj = [pscustomobject]([ordered]@{
           TableName = $tableName
           PkName    = $pkName
           PkValue   = $pkValue
+          SortOrder = $sortOrderNum
           Columns   = New-Object System.Collections.Generic.List[pscustomobject]
         })
  
@@ -301,12 +311,21 @@ function Get-AllDbObjectsFromChangeContent {
     else {return New-Object System.Collections.Generic.List[object]}
     Close-QSql
 
+    # Read SortOrder from the sibling column on the wrapper row
+    $sortOrderCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='SortOrder']")
+    $sortOrderVal = if ($sortOrderCol) { Get-ColumnValue -ColumnNode $sortOrderCol } else { $null }
+    $sortOrderNum = [long]::MaxValue
+    if (-not [string]::IsNullOrWhiteSpace($sortOrderVal)) {
+      [long]$parsed = 0
+      if ([long]::TryParse($sortOrderVal, [ref]$parsed)) { $sortOrderNum = $parsed }
+    }
+
     # Create object structure (PkName is not present in ObjectKey; leave null)
     $diffObj = [pscustomobject]([ordered]@{
       TableName = $tableName
       PkName    = $pkcolumnName
       PkValue   = $pkValue
-
+      SortOrder = $sortOrderNum
       Columns   = New-Object System.Collections.Generic.List[pscustomobject]
     })
  
@@ -476,27 +495,20 @@ function Enrich-DbObjectsWithFkMetadata {
   return $DbObjects
 }
 
-function Sort-DbObjectsByDependency {
+function Sort-DbObjectsBySortOrder {
   <#
   .SYNOPSIS
-    Sorts DbObjects so that referenced objects come before the objects that reference them.
+    Sorts DbObjects by the SortOrder value captured from the QBMTaggedChange wrapper row.
 
   .DESCRIPTION
-    Performs a topological sort on DbObjects based on FK column values.
-    For each object, if an FK column value matches the PK value of another object
-    in the set, that other object is treated as a dependency and placed earlier.
-    Objects with no internal dependencies are placed first.
-    This ensures Deployment Manager can import objects without reference errors.
-
-    Only single (non-composite) PK values are registered as referenceable targets.
-    Composite PK components (e.g., junction table FKs) are not registered to avoid
-    false circular dependencies between rows sharing a PK component value.
+    Uses the SortOrder property (ascending) to determine object output order.
+    Objects without a SortOrder (Long.MaxValue) are placed at the end.
 
   .PARAMETER DbObjects
     Array of parsed DbObjects to sort.
 
   .OUTPUTS
-    Sorted array of DbObjects (dependencies first).
+    Sorted array of DbObjects.
   #>
   [CmdletBinding()]
   param(
@@ -505,128 +517,10 @@ function Sort-DbObjectsByDependency {
 
   if (-not $DbObjects -or $DbObjects.Count -le 1) { return $DbObjects }
 
-  # Step 1: Build a lookup of PK values -> list of object indices
-  # ONLY register single (non-composite) PK values.
-  # Composite PK parts (arrays) are FK references themselves and should NOT
-  # be registered — they would cause false circular deps between junction table rows.
-  $pkToIndices = @{}
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    $obj = $DbObjects[$i]
+  $sorted = $DbObjects | Sort-Object { $_.SortOrder }
 
-    # Determine if PK is single or composite
-    $isSinglePk = $false
-    $pkVal = $null
-
-    if ($obj.PkValue -is [array]) {
-      if ($obj.PkValue.Count -eq 1) {
-        $isSinglePk = $true
-        $pkVal = [string]$obj.PkValue[0]
-      }
-      # Composite (Count > 1): skip registration
-    }
-    elseif (-not [string]::IsNullOrWhiteSpace($obj.PkValue)) {
-      $isSinglePk = $true
-      $pkVal = [string]$obj.PkValue
-    }
-
-    if ($isSinglePk -and -not [string]::IsNullOrWhiteSpace($pkVal)) {
-      if (-not $pkToIndices.ContainsKey($pkVal)) {
-        $pkToIndices[$pkVal] = [System.Collections.Generic.List[int]]::new()
-      }
-      $pkToIndices[$pkVal].Add($i)
-    }
-  }
-
-  # Step 2: Build adjacency list (dependency graph)
-  # For each object, check all column values against the PK lookup
-  $deps = @{}
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    $deps[$i] = [System.Collections.Generic.HashSet[int]]::new()
-  }
-
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    $obj = $DbObjects[$i]
-    foreach ($col in $obj.Columns) {
-      if ([string]::IsNullOrWhiteSpace($col.Value)) { continue }
-
-      $valStr = [string]$col.Value
-      if ($pkToIndices.ContainsKey($valStr)) {
-        foreach ($depIdx in $pkToIndices[$valStr]) {
-          if ($depIdx -ne $i) {
-            [void]$deps[$i].Add($depIdx)
-          }
-        }
-      }
-    }
-
-    # For composite PK tables (junction tables), the FK dependencies are in the
-    # PK values themselves (not in Columns). Check composite PK values against
-    # objects of a DIFFERENT table to avoid false circular deps between rows
-    # sharing a PK component.
-    if ($obj.PkValue -is [array] -and $obj.PkValue.Count -gt 1) {
-      foreach ($pv in $obj.PkValue) {
-        $pvStr = [string]$pv
-        if ([string]::IsNullOrWhiteSpace($pvStr)) { continue }
-        if (-not $pkToIndices.ContainsKey($pvStr)) { continue }
-
-        foreach ($depIdx in $pkToIndices[$pvStr]) {
-          if ($depIdx -ne $i -and $DbObjects[$depIdx].TableName -ne $obj.TableName) {
-            [void]$deps[$i].Add($depIdx)
-          }
-        }
-      }
-    }
-  }
-
-  # Step 3: Topological sort (Kahn's algorithm)
-  $inDegree = @{}
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    $inDegree[$i] = 0
-  }
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    foreach ($dep in $deps[$i]) {
-      $inDegree[$i]++
-    }
-  }
-
-  $queue = [System.Collections.Generic.Queue[int]]::new()
-  for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-    if ($inDegree[$i] -eq 0) {
-      $queue.Enqueue($i)
-    }
-  }
-
-  $sorted = [System.Collections.Generic.List[object]]::new()
-  $visited = [System.Collections.Generic.HashSet[int]]::new()
-
-  while ($queue.Count -gt 0) {
-    $idx = $queue.Dequeue()
-    if (-not $visited.Add($idx)) { continue }
-
-    $sorted.Add($DbObjects[$idx])
-
-    for ($j = 0; $j -lt $DbObjects.Count; $j++) {
-      if ($deps[$j].Contains($idx)) {
-        $inDegree[$j]--
-        if ($inDegree[$j] -eq 0) {
-          $queue.Enqueue($j)
-        }
-      }
-    }
-  }
-
-  # If there are objects not yet placed (circular dependency), append them at the end
-  if ($sorted.Count -lt $DbObjects.Count) {
-    Write-Warning "Circular dependency detected among $($DbObjects.Count - $sorted.Count) object(s) - appending at end."
-    for ($i = 0; $i -lt $DbObjects.Count; $i++) {
-      if (-not $visited.Contains($i)) {
-        $sorted.Add($DbObjects[$i])
-      }
-    }
-  }
-
-  Write-Host "  Sorted $($sorted.Count) object(s) by dependency order" -ForegroundColor DarkCyan
-  return $sorted.ToArray()
+  Write-Host "  Sorted $($sorted.Count) object(s) by SortOrder" -ForegroundColor DarkCyan
+  return @($sorted)
 }
  
 # Export module members
@@ -634,5 +528,5 @@ Export-ModuleMember -Function @(
   'Get-AllDbObjectsFromChangeContent',
   'Get-ForeignKeyMetadataPsModule',
   'Enrich-DbObjectsWithFkMetadata',
-  'Sort-DbObjectsByDependency'
+  'Sort-DbObjectsBySortOrder'
 )

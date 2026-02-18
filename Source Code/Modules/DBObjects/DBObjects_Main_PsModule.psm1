@@ -133,11 +133,11 @@ try {
   Write-Host "FK metadata enrichment completed"
   Write-Host ""
 
-  # Step 2.6: Sort objects by dependency order (referenced objects first)
-  Write-Host "[2.6/5] Sorting objects by dependency order..." -ForegroundColor Cyan
-  $Logger.info("Sorting objects by dependency order")
-  $dbObjects = Sort-DbObjectsByDependency -DbObjects $dbObjects
-  $Logger.info("Dependency sort completed")
+  # Step 2.6: Sort objects by SortOrder from QBMTaggedChange wrapper
+  Write-Host "[2.6/5] Sorting objects by SortOrder..." -ForegroundColor Cyan
+  $Logger.info("Sorting objects by SortOrder")
+  $dbObjects = Sort-DbObjectsBySortOrder -DbObjects $dbObjects
+  $Logger.info("SortOrder sort completed")
   Write-Host ""
 
   # Step 3: Get column permissions
