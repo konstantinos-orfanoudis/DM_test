@@ -5,7 +5,7 @@ function Get-DialogTableScriptsFromChangeLabel {
     [ValidateNotNullOrWhiteSpace()]
     [string]$ZipPath,
 
-    # the <T> value to match inside ObjectKey (keep as DialogTable per your requirement)
+    # the <T> value to match inside ObjectKey
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrWhiteSpace()]
     [string]$TypeName = "DialogTable"
@@ -21,9 +21,6 @@ function Get-DialogTableScriptsFromChangeLabel {
   for ($i = 0; $i -lt 3; $i++) {
     $text = [System.Net.WebUtility]::HtmlDecode($text)
   }
-  # If this change label contains Template column changes, treat it as Templates
-  # and do not parse table scripts from it.
- 
 
 
   # 1) Iterate DbObject blocks

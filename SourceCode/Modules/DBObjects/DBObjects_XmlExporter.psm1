@@ -31,9 +31,6 @@ function Export-ToNormalXml {
     [switch]$PreviewXml
   )
 
-  # Generate timestamp prefix
-  $timestamp = Get-Date -Format "000_yyyy_MM_dd"
-
   # Namespace per DM Objects schema
   $nsDefault = "http://www.intragen.com/xsd/XmlObjectSchema"
   $nsXsi     = "http://www.w3.org/2001/XMLSchema-instance"
@@ -47,12 +44,11 @@ function Export-ToNormalXml {
   }
 
   # Ensure output directory exists
-  write-host "$OutPath !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   if (-not (Test-Path -LiteralPath $OutPath)) {
     New-Item -ItemType Directory -Path $OutPath -Force | Out-Null
   }
 
-  # Generate output filename with timestamp
+  # Generate output filename
   $outFile = Join-Path $OutPath "DBObjects.xml"
 
   # Configure XML writer

@@ -143,7 +143,7 @@ Class DmDoc {
                 }
 
                 foreach($ref in $o.getRefs()) {
-                    # dont need to move where refs
+                    # don't need to move where refs
                     if(!$ref.isLocalRef()) {
                         continue
                     }                    
@@ -197,7 +197,7 @@ Class DmDoc {
                 $objelem.AppendChild($attrelem)
 
                 if(!$attr.isRef -and ![string]::IsNullOrWhiteSpace($attr.value)) {
-                    # simple non-whitespace attributes
+                    # Simple scalar (non-reference) attributes
                     if($attr.value -match "`r|`n") {
                         $cdata = $this.doc.CreateCDataSection($attr.value)
                         $attrelem.AppendChild($cdata)
@@ -206,12 +206,12 @@ Class DmDoc {
                     }
                 
                 } else {
-                    # handle references
+                    # Handle object references
                     if($attr.objRef -ne $null -and $attr.objRef.isValidRef()) {
                         $objRefelem = $this.doc.CreateNode("element",$attr.objRef.tableName,$null)
                         $attrelem.AppendChild($objRefelem)
 
-                        #whereClause takes precedence
+                        # whereClause takes precedence over local idref
                         #if(![string]::IsNullOrEmpty($attr.objRef.whereClause)) {
                         if(!$attr.objRef.isLocalRef()) {
                             $whereClause = $this.doc.CreateAttribute("where")
@@ -224,14 +224,14 @@ Class DmDoc {
                             $idref.Value = $this.idmap[$attr.objRef.pk]
                         }
 
-                        # column?
+                        # Add column attribute if defined
                         if($attr.refAttr -ne $null) {
                             $refcolumn = $this.doc.CreateAttribute("column")
                             $objRefelem.Attributes.Append($refcolumn) 
                             $refcolumn.Value = $attr.refcolumn
                         }
                     } else {
-                        # prune empty ref elem
+                        # Remove element if reference is empty or invalid
                         $objelem.RemoveChild($attrelem)
                     }
                 }

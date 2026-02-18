@@ -33,10 +33,10 @@ function Get-ColumnPermissionsPsModule {
   try {
     $connection = $session.Connection
 
-    # Convert to hashtable
+    # Build allowed columns per table
     $allowedByTable = @{}
-    $Logger = Get-logger
-    $Logger.info("The selected teable(s):")
+    $Logger = Get-Logger
+    $Logger.info("The selected table(s):")
     foreach ($selectedTableName in $Tables) {
       Write-Host  $selectedTableName
       $selectedTables = $connection.Tables  | Where-Object { $_.TableName -eq $selectedTableName }
@@ -63,7 +63,7 @@ function Get-ColumnPermissionsPsModule {
   }
 }
 
-function Filter-DbObjectsByAllowedColumnsPsModule {
+function Select-DbObjectsByAllowedColumnsPsModule {
   <#
   .SYNOPSIS
     Filters DbObject columns based on permissions from API response.
@@ -112,5 +112,5 @@ function Filter-DbObjectsByAllowedColumnsPsModule {
 # Export module members
 Export-ModuleMember -Function @(
   'Get-ColumnPermissionsPsModule',
-  'Filter-DbObjectsByAllowedColumnsPsModule'
+  'Select-DbObjectsByAllowedColumnsPsModule'
 )

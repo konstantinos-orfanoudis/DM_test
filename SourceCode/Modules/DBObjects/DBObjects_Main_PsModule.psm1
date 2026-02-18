@@ -133,7 +133,7 @@ try {
   # Step 4: Filter columns
   Write-Host "[4/5] Filtering columns based on permissions"
   $Logger.info("Filtering columns based on permissions")
-  $dbObjectsFiltered = Filter-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
+  $dbObjectsFiltered = Select-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
   $totalColumns = ($dbObjectsFiltered | ForEach-Object { $_.Columns.Count } | Measure-Object -Sum).Sum
   Write-Host "Retained $totalColumns allowed column(s) across all objects"
   Write-Host ""
@@ -159,14 +159,14 @@ try {
   $Logger.info("Export completed successfully!")
 }
 catch {
-  $Logger = Get-logger
+  $Logger = Get-Logger
   $Logger.info("ERROR: Export failed!")
   $Logger.info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red
   if ($_.ScriptStackTrace) {
-    $Logger = Get-logger
+    $Logger = Get-Logger
     $logger.info("Stack Trace:")
     $logger.info($_.ScriptStackTrace )
     Write-Host ""

@@ -27,8 +27,8 @@ Export-Process -Name "My Job Chain" -TableName "Person" -OutFilePath "C:\temp\my
 #>
 function Export-Process{
 param(
-    [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$Name , 
-    [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$TableName , 
+    [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$Name ,
+    [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$TableName ,
     [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)][string]$OutFilePath
 )
 
@@ -46,15 +46,13 @@ if($oimJobChain.Length -gt 1) {
     throw ("JobChain {0}.{1} not unique!" -f $TableName,$Name)
 }
 
-#
-## create the JobChain
-#
+# Create the JobChain
 $UID_JobChain = $oimJobChain.GetValue("UID_JobChain").String
-$oimJobChain |% {
+$oimJobChain | ForEach-Object {
 
     $jc = New-DmObject $_
 	$jc.attrs += New-DmObjectAttr $_ "UID_JobChain" $True
-	$jc.attrs += New-DmObjectAttr $_ "Name" 
+	$jc.attrs += New-DmObjectAttr $_ "Name"
     $jc.attrs += New-DmObjectAttrRef $_ "UID_DialogTable" "DialogTable" $False $True
     $jc.attrs += New-DmObjectAttr $_ "CustomRemarks"
     $jc.attrs += New-DmObjectAttr $_ "Description"
@@ -70,12 +68,10 @@ $oimJobChain |% {
     $dm.AddObjDef($jc)
 }
 
-#
-## create the Jobs
-#
+# Create the Jobs
 $oimJobs = Find-QObject Job ("UID_JobChain = '{0}'" -f $UID_JobChain)
-$oimJobs |% {
-    
+$oimJobs | ForEach-Object {
+
     $j = New-DmObject $_
 	$j.attrs += New-DmObjectAttr $_ "UID_Job" $True
 	$j.attrs += New-DmObjectAttr $_ "Name"
@@ -111,43 +107,39 @@ $oimJobs |% {
 
     $dm.AddObjDef($j)
 
-    #
-    ## create the JobRunParameters
-    #
+    # Create the JobRunParameters
     $oimJobRunParameters = Find-QObject JobRunParameter ("UID_Job = '{0}'" -f $_.GetValue("UID_Job").String)
-    $oimJobRunParameters |% {
-        $e = $_.Create()          
+    $oimJobRunParameters | ForEach-Object {
+        $e = $_.Create()
         $jrp = New-DmObject $_
         $jrp.attrs += New-DmObjectAttrRef $_ "UID_Job" "Job" $True
         $jrp.attrs += New-DmObjectAttrRef $_ "UID_JobParameter" "JobParameter" $True $True
         $jrp.attrs += New-DmObjectAttr $_ "Name"
         $jrp.attrs += New-DmObjectAttr $_ "ValueTemplate"
-        if(($e.Columns |? { $_.Columnname -eq "IsCompressed"}).CanEdit) {
+        if(($e.Columns | Where-Object { $_.Columnname -eq "IsCompressed"}).CanEdit) {
             $jrp.attrs += New-DmObjectAttr $_ "IsCompressed"
         }
-        if(($e.Columns |? { $_.Columnname -eq "IsCrypted"}).CanEdit) {
+        if(($e.Columns | Where-Object { $_.Columnname -eq "IsCrypted"}).CanEdit) {
             $jrp.attrs += New-DmObjectAttr $_ "IsCrypted"
         }
-        if(($e.Columns |? { $_.Columnname -eq "IsPartialCrypted"}).CanEdit) {
+        if(($e.Columns | Where-Object { $_.Columnname -eq "IsPartialCrypted"}).CanEdit) {
             $jrp.attrs += New-DmObjectAttr $_ "IsPartialCrypted"
         }
-        if(($e.Columns |? { $_.Columnname -eq "IsHidden"}).CanEdit) {
+        if(($e.Columns | Where-Object { $_.Columnname -eq "IsHidden"}).CanEdit) {
             $jrp.attrs += New-DmObjectAttr $_ "IsHidden"
         }
         $jrp.sort = $True
         $e.Discard()
-        
+
         $dm.AddObjDef($jrp)
     }
 }
 
 
 
-#
-## create the Event
-#
+# Create the Event
 $oimQBMEvent = Find-QObject QBMEvent ("exists(select 1 from JobEventGen jeg join JobChain jc on jc.UID_JobChain=jeg.UID_JobChain	where jc.UID_JobChain = '{0}' and QBMEvent.UID_QBMEvent=jeg.UID_QBMEvent)" -f $UID_JobChain)
-$oimQBMEvent |% {
+$oimQBMEvent | ForEach-Object {
     $e = New-DmObject $_
 	$e.attrs += New-DmObjectAttr $_ "UID_QBMEvent" $True
     $e.attrs += New-DmObjectAttrRef $_ "UID_DialogTable" "DialogTable" $False $True
@@ -157,12 +149,10 @@ $oimQBMEvent |% {
     $dm.AddObjDef($e)
 }
 
-#
-## create the JobEventGen
-#
+# Create the JobEventGen
 $oimJobEventGen = Find-QObject JobEventGen ("UID_JobChain = '{0}'" -f $UID_JobChain)
-$oimJobEventGen |% {
-    
+$oimJobEventGen | ForEach-Object {
+
     $jeg = New-DmObject $_
 	$jeg.attrs += New-DmObjectAttr $_ "UID_JobEventGen" $True
     $jeg.attrs += New-DmObjectAttrRef $_ "UID_QBMEvent" "QBMEvent" $True
@@ -173,10 +163,8 @@ $oimJobEventGen |% {
     $dm.AddObjDef($jeg)
 }
 
-#
-## wire the JobChain to the first Job
-#
-$oimJobChain |% {
+# Wire the JobChain to the first Job
+$oimJobChain | ForEach-Object {
 
     $jc = New-DmObject $_
 	$jc.attrs += New-DmObjectAttrRef $_ "UID_JobChain" "JobChain" $True

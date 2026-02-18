@@ -15,7 +15,7 @@
   Configuration directory for OIM connection.
 
 .PARAMETER LogPath
-  Optional log file path (kept for signature compatibility).
+  Optional log file path.
 
 .PARAMETER DMDll
   Path to the Deployment Manager DLL.
@@ -73,11 +73,11 @@ try {
 
   if ($scripts.Count -gt 0) {
 
-    # Step 2: Login (kept for parity / future use)
+    # Step 2: Authenticate with OIM
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
     $Logger = Get-Logger
     $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
-    $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+    Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath | Out-Null
     $Logger = Get-Logger
     $Logger.info("Authentication successful")
     Write-Host "Authentication successful"
@@ -102,7 +102,7 @@ try {
 catch {
   $Logger = Get-Logger
   $Logger.info("ERROR: Export failed!")
-  Logger.info($_.Exception.Message)
+  $Logger.info($_.Exception.Message)
   Write-Host ""
   Write-Host "ERROR: Export failed!" -ForegroundColor Red
   Write-Host $_.Exception.Message -ForegroundColor Red

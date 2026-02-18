@@ -76,10 +76,10 @@ try {
   $Logger.Info("Found $($templates.Count) template(s)")
 
   if ($templates.Count -gt 0) {
-    # Step 2: Login to API
-    $Logger.Info("Opening session with DMConfigDir")
+    # Step 2: Authenticate with OIM
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-    $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+    Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath | Out-Null
     Write-Host "Authentication successful"
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")

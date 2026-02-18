@@ -76,10 +76,10 @@ try {
   $Logger.Info("Found $($scripts.Count) script(s)")
 
   if ($scripts.Count -gt 0) {
-    # Step 2: Login to API
+    # Step 2: Authenticate with OIM
     Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-    $Logger.Info("Opening session with DMConfigDir")
-    $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
+    Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath | Out-Null
     Write-Host "Authentication successful"
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")

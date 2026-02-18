@@ -29,7 +29,7 @@ function global:Get-Logger() {
 
   $method = Get-FunctionName -StackNumber 2
 
-  $NLogLevel = "Trace" #Setup log level(Valid Values Info,Debug,Trace)
+  $NLogLevel = "Trace" # Valid values: Trace, Debug, Info
 
   $logCfg  = Get-NewLogConfig
 
@@ -41,7 +41,7 @@ function global:Get-Logger() {
 
   $debugLog.CreateDirs    = $true
 
-  $debugLog.FileName      =  $FinalLogPath #Setup logfile path
+  $debugLog.FileName      =  $FinalLogPath # Log file path
 
   $debugLog.Encoding      = [System.Text.Encoding]::GetEncoding("utf-8")
 
@@ -51,7 +51,7 @@ function global:Get-Logger() {
 
   $debugLog.maxArchiveFiles   = 7
 
-  $debugLog.archiveFileName   = "$ArchiveLogPath{#}.log" #Setup logfile path
+  $debugLog.archiveFileName   = "$ArchiveLogPath{#}.log" # Archive log file path pattern
 
   $logCfg.AddTarget("file", $debugLog)
 

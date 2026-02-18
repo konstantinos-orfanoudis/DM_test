@@ -56,7 +56,7 @@ function GetAllProcessFromChangeLabel {
 
   foreach ($dbo in $taggedChangeDbos) {
 
-    # QBMTaggedChange Key attribute (kept; not used further, but preserves your flow)
+    # QBMTaggedChange Key attribute (kept for reference; not used further in processing)
     $qbmTable = $dbo.SelectSingleNode("./*[local-name()='Key']/*[local-name()='Table' and @Name='QBMTaggedChange']")
     $taggedChangeKey = if ($qbmTable) { $qbmTable.GetAttribute("Key") } else { $null }
     if ([string]::IsNullOrWhiteSpace($taggedChangeKey)) { continue }

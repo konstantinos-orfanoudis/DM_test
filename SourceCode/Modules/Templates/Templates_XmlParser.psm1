@@ -14,9 +14,9 @@ function Get-TemplatesFromChangeContent {
 
   # Read whole file + decode a few times (handles &lt; and &amp;lt;)
   $text = Get-Content -LiteralPath $ZipPath -Raw
-  $text = [System.Net.WebUtility]::HtmlDecode($text) # If more than 1 time encoded, use the For-Block "for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }"
+  $text = [System.Net.WebUtility]::HtmlDecode($text) # Note: For multiply-encoded content, replace with a decode loop (up to 3 passes)
 
-  function Sanitize-FilePart([string]$s) {
+  function Format-FilePart([string]$s) {
     if ([string]::IsNullOrWhiteSpace($s)) { return "" }
     $invalid = [System.IO.Path]::GetInvalidFileNameChars()
     foreach ($ch in $invalid) { $s = $s.Replace($ch, '_') }
@@ -86,8 +86,8 @@ function Get-TemplatesFromChangeContent {
       $columnName = $mKey.Groups[2].Value
     }
 
-    $tableName  = Sanitize-FilePart $tableName
-    $columnName = Sanitize-FilePart $columnName
+    $tableName  = Format-FilePart $tableName
+    $columnName = Format-FilePart $columnName
     if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
 
