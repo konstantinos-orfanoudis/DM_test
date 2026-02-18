@@ -2,10 +2,10 @@ Using module ..\..\DmDoc.psm1
 
 <#
 .SYNOPSIS
-Exports a job chain from the 1IM database to Intragen DeploymentManager xml.
+Exports a job chain from the OIM database to Intragen DeploymentManager xml.
 
 .DESCRIPTION
-Exports a job chain from the 1IM database to Intragen DeploymentManager xml.
+Exports a job chain from the OIM database to Intragen DeploymentManager xml.
 
 .PARAMETER Name
 Specifies the job chain name.
@@ -23,7 +23,7 @@ As per parameters.
 DeploymentManager xml file.
 
 .EXAMPLE
-Export-Process.ps1 "My Job Chain" "Person" "C:\temp\myjobchain.xml"
+Export-Process -Name "My Job Chain" -TableName "Person" -OutFilePath "C:\temp\myjobchain.xml"
 #>
 function Export-Process{
 param(

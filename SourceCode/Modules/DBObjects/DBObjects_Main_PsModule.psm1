@@ -7,13 +7,13 @@
   applies column-level permissions, and exports to either normal XML format
   or CSV mode (separate XML schema + CSV data files per table).
 
-.PARAMETER Path
+.PARAMETER ZipPath
   Path to the input XML file (e.g., Transport TagData.xml).
 
 .PARAMETER OutPath
   Output directory path where all files will be exported.
 
-.PARAMETER ConfigDir
+.PARAMETER DMConfigDir
   Configuration directory for OIM connection.
 
 .PARAMETER LogPath
@@ -32,13 +32,13 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  DBObjects_Main_PsModule -ZipPath "C:\Input\tagdata.xml" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll"
 
 .EXAMPLE
-  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode
+  DBObjects_Main_PsModule -ZipPath "C:\Input\tagdata.xml" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode
 
 .EXAMPLE
-  DBObjects_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode -PreviewXml
+  DBObjects_Main_PsModule -ZipPath "C:\Input\tagdata.xml" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll" -CSVMode -PreviewXml
 #>
 
 function DBObjects_Main_PsModule{

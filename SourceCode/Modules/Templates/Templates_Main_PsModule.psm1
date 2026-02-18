@@ -5,13 +5,13 @@
 .DESCRIPTION
   Orchestrates the extraction of Templates from OIM Transport XML files.
 
-.PARAMETER Path
+.PARAMETER ZipPath
   Path to the input XML file (e.g., Transport TagData.xml).
 
 .PARAMETER OutPath
   Output directory path where all files will be exported.
 
-.PARAMETER ConfigDir
+.PARAMETER DMConfigDir
   Configuration directory for OIM connection.
 
 .PARAMETER LogPath
@@ -21,7 +21,7 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  Templates_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  Templates_Main_PsModule -ZipPath "C:\Input\tagdata.xml" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll"
 #>
 
 function Templates_Main_PsModule{

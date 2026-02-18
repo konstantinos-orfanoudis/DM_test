@@ -1,17 +1,17 @@
 <#
 .SYNOPSIS
-  Main script to export OIM Scripts from TagData XML files.
+  Main script to export OIM TableScripts from TagData XML files.
 
 .DESCRIPTION
-  Orchestrates the extraction of Scripts from OIM Transport XML files.
+  Orchestrates the extraction of TableScripts from OIM Transport XML files.
 
-.PARAMETER Path
+.PARAMETER ZipPath
   Path to the input XML file (e.g., Transport TagData.xml).
 
 .PARAMETER OutPath
   Output directory path where all files will be exported.
 
-.PARAMETER ConfigDir
+.PARAMETER DMConfigDir
   Configuration directory for OIM connection.
 
 .PARAMETER LogPath
@@ -21,7 +21,7 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  Scripts_Main_PsModule -Path "C:\Input\tagdata.xml" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  TableScripts_Main_PsModule -ZipPath "C:\Input\tagdata.xml" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll"
 #>
 
 function TableScripts_Main_PsModule{

@@ -22,7 +22,7 @@ function Get-FormatScriptKeysFromChangeLabel {
     $text = [System.Net.WebUtility]::HtmlDecode($text)
   }
 
-  # Match: <T>DialogScript</T><P>...</P> (allow whitespace/newlines)
+  # Match: <T>DialogColumn</T><P>...</P> (allow whitespace/newlines)
   $pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
 
   $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)

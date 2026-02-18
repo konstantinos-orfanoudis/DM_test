@@ -2,15 +2,14 @@ function global:Get-FunctionName ([int]$StackNumber = 2) {return [string]$(Get-P
 
  
 
-#Logger code starting here.
+#region Logger Initialization
 
 
   $configPath = Join-Path $PSScriptRoot 'config.json'
   $config = Get-Content $configPath -Raw | ConvertFrom-Json
   $Nloggerdll = [string]$config.NLoggerDLL
-  # Add-Type -Path 'C:\Program Files\One Identity\One Identity Manager\NLog.dll'
   Add-Type -Path $Nloggerdll
-  #Logger code starting here.
+  #endregion
 
 function global:Get-FunctionName ([int]$StackNumber = 1) {return [string]$(Get-PSCallStack)[$StackNumber].FunctionName}
 

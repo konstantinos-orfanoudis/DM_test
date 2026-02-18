@@ -30,7 +30,7 @@
   Path to the Deployment Manager DLL.
 
 .EXAMPLE
-  .\MainPsModule.ps1 -ZipPath "C:\Input\export.zip" -OutPath "C:\Output" -ConfigDir "C:\Config" -DMDll "C:\DM.dll"
+  .\MainPsModule.ps1 -ZipPath "C:\Input\export.zip" -OutPath "C:\Output" -DMConfigDir "C:\Config" -DMDll "C:\DM.dll"
 #>
 
 [CmdletBinding()]
