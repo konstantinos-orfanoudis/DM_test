@@ -337,4 +337,4 @@ Verify that `NLoggerDLL` in `config.json` points to the correct `NLog.dll` from 
 
 ## License
 
-This tool is provided as-is for use with One Identity Manager.
+This tool is provided as-is for use with One Identity Manager 9.3
