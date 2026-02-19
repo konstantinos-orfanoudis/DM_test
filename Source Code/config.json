@@ -6,7 +6,7 @@
   "IncludeEmptyValues": false,
   "PreviewXml" : false,
   "CSVMode": false,
-  "DMDll":"C:\\Users\\OneIM\\Desktop\\Installation_DeploymentManager\\DeploymentManager-4.0.6-beta\\Intragen.Deployment.OneIdentity.dll",
-  "DMPassword": "Password.1234",
-  "ExcludedColumnsCSV" : "C:\\Users\\OneIM\\Desktop\\DM_File_Creator\\DM_test-Dev\\Source Code\\Excluded.csv"
+  "DMDll":"C:\\Users\\OneIM\\Desktop\\DeploymentManager-4.0.6-beta\\Intragen.Deployment.OneIdentity.dll",
+  "DMPassword": "123",
+  "ExcludedColumnsCSV" : "C:\\Users\\OneIM\\Desktop\\Git\\DM_test\\Source Code\\Excluded.csv"
 }
