@@ -74,6 +74,9 @@ function Get-ColumnPermissionsPsModule {
       $allowedColumns = [System.Collections.Generic.List[string]]::new()
 
       foreach ($selectedColumn in $columns) {
+          # canEditDisallowedBy is an empty string when the column is fully editable.
+          # When it contains a space it holds one or more "disallowed by" reason tokens,
+          # meaning OIM prevents editing — so those columns are excluded from the allowed list.
           if (-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ')) {
               $isExcluded = $false
               foreach ($ex in $Excluded) {
@@ -152,7 +155,9 @@ function Filter-DbObjectsByAllowedColumnsPsModule {
     }
 
 
-    # Filter columns
+    # Filter columns — PK columns always pass through regardless of permissions because
+    # they are required to identify the row in the output; all other columns must be
+    # explicitly allowed by the OIM editable-column check above.
     $filteredCols = New-Object System.Collections.Generic.List[pscustomobject]
     foreach ($col in $obj.Columns) {
       $s = $col.Name

@@ -160,10 +160,13 @@ function Get-AllDbObjectsFromChangeContent {
         $tableName = $tableNode.GetAttribute('Name')
         if ([string]::IsNullOrWhiteSpace($tableName)) { continue }
  
-        # Extract primary key info
+        # Extract primary key info.
+        # SelectNodes returns an XmlNodeList; PowerShell member-access enumeration
+        # calls GetAttribute/SelectSingleNode on each node in the list, producing
+        # an array — which handles composite PKs (multiple <Prop> children) naturally.
         $pkPropNode = $tableNode.SelectNodes('./Prop')
-        
-        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null } 
+
+        $pkName  = if ($pkPropNode) { $pkPropNode.GetAttribute('Name') -split " " } else { $null }
         $pkValue = if ($pkPropNode) {
           $v = $pkPropNode.SelectSingleNode('./Value')
           if ($v) { $v.InnerText -split " " } else { $null }
@@ -188,7 +191,9 @@ function Get-AllDbObjectsFromChangeContent {
           Columns   = New-Object System.Collections.Generic.List[pscustomobject]
         })
  
-        # Build PK lookup for marking and value override
+        # Build PK lookup for marking and value override.
+        # @() wrapping ensures arrays even when PkName/PkValue are a single value or $null,
+        # keeping index-based pairing reliable for both simple and composite PKs.
         $pkNameSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         $pkValueMap = @{}
         if ($pkName) {
@@ -220,8 +225,12 @@ function Get-AllDbObjectsFromChangeContent {
             } else { '' }
             # PK columns are always included; other FKs respect IncludeEmptyValues
             if ($isPk -or $IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($refVal)) {
-              # Use authoritative PkValue for PK columns
+              # For PK columns use the authoritative value from pkValueMap (Key/Table at DbObject root)
+              # rather than the FK's nested Prop/Value, which may differ or be stale.
               $finalVal = if ($isPk -and $pkValueMap.ContainsKey($colName)) { $pkValueMap[$colName] } else { $refVal }
+              # IsForeignKey stays $true even when $isPk is also $true — a column can be both
+              # (e.g. UID_Org on PersonInOrg is the PK and also an FK to Org).
+              # Exporters rely on IsForeignKey to produce the correct nested XML structure.
               $obj.Columns.Add([pscustomobject]@{
                 Name         = $colName
                 Value        = $finalVal
@@ -294,8 +303,9 @@ function Get-AllDbObjectsFromChangeContent {
     if ([string]::IsNullOrWhiteSpace($tableName)) 
     { continue }
 
+    # Open-QSql configures the implicit global connection; its return value is not used here.
     $s = Open-QSql
-    $wc = "SELECT  ColumnName 
+    $wc = "SELECT  ColumnName
            FROM DialogColumn 
            WHERE 1=1 AND 
             IsPKMember = 1 AND 
@@ -309,7 +319,10 @@ function Get-AllDbObjectsFromChangeContent {
     if ($pr) {
       $pkcolumnName = $pr["ColumnName"]
     }
-    else {return New-Object System.Collections.Generic.List[object]}
+    else {
+      # PK column not found for this table — abort entirely to avoid emitting an invalid object.
+      return New-Object System.Collections.Generic.List[object]
+    }
     Close-QSql
 
     # Read SortOrder from the sibling column on the wrapper row
