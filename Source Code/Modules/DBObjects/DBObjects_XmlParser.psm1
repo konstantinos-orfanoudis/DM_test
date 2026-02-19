@@ -211,7 +211,6 @@ function Get-AllDbObjectsFromChangeContent {
           # Check if it's a foreign key column
           $fkTableNode = $col.SelectSingleNode('./Key/Table')
           if ($fkTableNode) {
-            write-host "It entered Here 214 Parser 9999999999999999999999999"
             $fkTableName = $fkTableNode.GetAttribute('Name')
             $refProp = $fkTableNode.SelectSingleNode('./Prop')
             $refPkName = if ($refProp) { $refProp.GetAttribute('Name') } else { $null }
@@ -219,7 +218,6 @@ function Get-AllDbObjectsFromChangeContent {
               $rv = $refProp.SelectSingleNode('./Value')
               if ($rv) { $rv.InnerText } else { '' }
             } else { '' }
-write-host "refprop=$refProp refpkname= $refPkName  refVal= $refVal line 222 "
             # PK columns are always included; other FKs respect IncludeEmptyValues
             if ($isPk -or $IncludeEmptyValues -or -not [string]::IsNullOrWhiteSpace($refVal)) {
               # Use authoritative PkValue for PK columns

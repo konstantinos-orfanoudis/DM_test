@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Objects xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.intragen.com/xsd/XmlObjectSchema">
+  <Keys>
+    <PersonInOrg>UID_Org</PersonInOrg>
+    <PersonInOrg>UID_Person</PersonInOrg>
+  </Keys>
+  <PersonInOrg>
+    <UID_Org>f1ac1957-3f58-4878-ab23-f167dcf43811</UID_Org>
+    <UID_Person>29f4fbf8-e290-4bfe-ae18-2fad216ff1d4</UID_Person>
+  </PersonInOrg>
+</Objects>
