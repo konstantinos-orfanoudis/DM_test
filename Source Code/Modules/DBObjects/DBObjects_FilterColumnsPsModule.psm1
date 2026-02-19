@@ -158,7 +158,7 @@ function Filter-DbObjectsByAllowedColumnsPsModule {
       $s = $col.Name
       $t = $obj.TableName
       #write-host "$t - $s #####################################################"
-      if ($col.Name -and $allowedSet.Contains($col.Name)) {
+      if ($col.Name -and ($col.IsPrimaryKey -or $allowedSet.Contains($col.Name))) {
         $t = $obj.TableName
         $s = $col.Name
         $filteredCols.Add($col)

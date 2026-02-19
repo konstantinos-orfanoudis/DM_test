@@ -3,7 +3,7 @@
   "OutPath":"C:\\Users\\OneIM\\Desktop\\Outpath",
   "LogPath":"C:\\Users\\OneIM\\Desktop\\Project\\Logs",
   "NLoggerDLL":"C:\\Program Files\\One Identity\\One Identity Manager\\NLog.dll",
-  "IncludeEmptyValues": false,
+  "IncludeEmptyValues": true,
   "PreviewXml" : false,
   "CSVMode": false,
   "DMDll":"C:\\Users\\OneIM\\Desktop\\DeploymentManager-4.0.6-beta\\Intragen.Deployment.OneIdentity.dll",

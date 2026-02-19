@@ -230,12 +230,6 @@ function Get-AllDbObjectsFromChangeContent {
                 FkTableName  = $fkTableName
                 FkColumnName = $refPkName
               })
-              # write-host "Name         = $colName
-              #             Value        = $finalVal
-              #             IsForeignKey = $true
-              #             IsPrimaryKey = $isPk
-              #             FkTableName  = $fkTableName
-              #             FkColumnName = $refPkName"
             }
 
             continue
@@ -256,10 +250,6 @@ function Get-AllDbObjectsFromChangeContent {
                   IsForeignKey = $false
                   IsPrimaryKey = $isPk
                 })
-                write-host " Name         = $colName
-                  Value        = $finalVal
-                  IsForeignKey = $false
-                  IsPrimaryKey = $isPk"
             }
           }
         }
