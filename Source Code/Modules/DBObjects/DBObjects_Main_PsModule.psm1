@@ -124,6 +124,21 @@ try {
   Write-Host "Authentication successful"
   Write-Host ""
 
+  # Step 2.5: Discover FK metadata and enrich parsed objects
+  Write-Host "[2.5/5] Discovering FK metadata for tables: $($uniqueTables -join ', ')" -ForegroundColor Cyan
+  $Logger.info("Discovering FK metadata for tables: $($uniqueTables -join ', ')")
+  $fkMetaByTable = Get-ForeignKeyMetadataPsModule -Session $session -Tables $uniqueTables
+  $dbObjects = Enrich-DbObjectsWithFkMetadata -DbObjects $dbObjects -FkMetaByTable $fkMetaByTable
+  $Logger.info("FK metadata enrichment completed")
+  Write-Host "FK metadata enrichment completed"
+  Write-Host ""
+
+  # Step 2.6: Sort objects by SortOrder from QBMTaggedChange wrapper
+  Write-Host "[2.6/5] Sorting objects by SortOrder..." -ForegroundColor Cyan
+  $Logger.info("Sorting objects by SortOrder")
+  $dbObjects = Sort-DbObjectsBySortOrder -DbObjects $dbObjects
+  $Logger.info("SortOrder sort completed")
+  Write-Host ""
 
   # Step 3: Get column permissions
   Write-Host "[3/5] Retrieving column permissions for tables: $($uniqueTables -join ', ')"

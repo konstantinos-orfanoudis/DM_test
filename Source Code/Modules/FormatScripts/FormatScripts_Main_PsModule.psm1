@@ -46,6 +46,9 @@ param(
   [switch]$CSVMode,
 
   [Parameter(Mandatory = $false)]
+  [switch]$IncludeEmptyValues,
+
+  [Parameter(Mandatory = $false)]
   [string]$DMPassword = ""
 )
 

@@ -31,7 +31,34 @@ function Get-ColumnPermissionsPsModule {
   )
 
   try {
+    
+    $parentOfParent = (Get-Item $PSScriptRoot).Parent.Parent.FullName
+    write-host "$parentOfParent 'config.json'"
+    $configPath = Join-Path $parentOfParent 'config.json'
+    
+    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+    $CSVPath = [string]$config.ExcludedColumnsCSV 
+    #$Excluded = Import-Csv -Path $CSVPath
+
+    if (Test-Path -Path $CSVPath -PathType Leaf) {
+    $Logger = Get-logger
+    $Logger.info("CSV ExcludedColumns file found. Importing...")
+    Write-Host "CSV ExcludedColumns file found. Importing..."
+    $Excluded = Import-Csv -Path $CSVPath
+      }
+      else {
+          $Logger = Get-logger
+          $Logger.info("CSV ExcludedColumns file NOT found at path: $CSVPath")
+          Write-Host "CSV ExcludedColumns file NOT found at path: $CSVPath" -ForegroundColor Red
+      }
+
+
+
+
+
+
     $connection = $session.Connection
+    
 
     # Convert to hashtable
     $allowedByTable = @{}
@@ -39,18 +66,41 @@ function Get-ColumnPermissionsPsModule {
     $Logger.info("The selected teable(s):")
     foreach ($selectedTableName in $Tables) {
       Write-Host  $selectedTableName
-      $selectedTables = $connection.Tables  | Where-Object { $_.TableName -eq $selectedTableName }
-      Write-Host $selectedTables
-      $Logger.info($selectedTables)
-      $columns = $selectedTables.Columns
+      $xobjk = find-Qsql "Select TOP 1 XObjectKey FROM $selectedTableName"
+      $result = Get-QObject $selectedTableName "XObjectKey" $xobjk
+      Write-Host $result
+      $Logger.info($result)
+      $columns = $result.Columns
       $allowedColumns = [System.Collections.Generic.List[string]]::new()
 
       foreach ($selectedColumn in $columns) {
-        if($selectedColumn.canInsert.AnyBitSet){
-          $allowedColumns.Add($selectedColumn.columnName)
-        }
+          if (-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ')) {
+              $isExcluded = $false
+              foreach ($ex in $Excluded) {
+                  if ($ex.TableName -eq $selectedTableName -and $ex.ColumnName -eq $selectedColumn.ColumnName) {
+                      $isExcluded = $true
+                      break
+                  }
+              }
+              if (-not $isExcluded) {
+                  $allowedColumns.Add($selectedColumn.columnName)
+              }
+          }
       }
-      
+
+      # foreach ($selectedColumn in $columns) {
+
+      #   if(-not $selectedColumn.canEditDisallowedBy.ToString().Contains(' ') ){
+      #    foreach ($ex in $Excluded)
+      #    {
+      #       if (-not ($ex.TableName -eq $selectedTableName -and $ex.ColumnName -eq $selectedColumn.ColumnName))
+      #       { 
+                    
+      #        $allowedColumns.Add($selectedColumn.columnName)
+      #       }
+      #   }       
+      #   }
+      # }
       $allowedByTable[$selectedTableName] = $allowedColumns;
     }
     
@@ -89,20 +139,33 @@ function Filter-DbObjectsByAllowedColumnsPsModule {
       $obj.Columns = New-Object System.Collections.Generic.List[pscustomobject]
       continue
     }
-
+    $li = $obj.Columns
+    #write-host "$li ///////////////////////////////////////////////////"
     # Create case-insensitive hashset of allowed columns
     $allowedSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($col in $AllowedColumnsByTable[$obj.TableName]) {
-      [void]$allowedSet.Add($col)
+      $s = $col
+      $t = $obj.TableName
+      #write-host "$t - $s #####################################################" 
+      [void]$allowedSet.Add(($col -as [string]).Trim())
+     # write-host "$allowedSet ooooooooooooooooooooooooooooooo"
     }
+
 
     # Filter columns
     $filteredCols = New-Object System.Collections.Generic.List[pscustomobject]
     foreach ($col in $obj.Columns) {
+      $s = $col.Name
+      $t = $obj.TableName
+      #write-host "$t - $s #####################################################"
       if ($col.Name -and $allowedSet.Contains($col.Name)) {
+        $t = $obj.TableName
+        $s = $col.Name
         $filteredCols.Add($col)
+        #write-host "$t - $s #####################################################"
       }
     }
+
     $obj.Columns = $filteredCols
   }
 

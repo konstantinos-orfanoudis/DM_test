@@ -11,6 +11,7 @@ function Get-ScriptKeysFromChangeLabel {
   )
   $Logger = Get-Logger
   if (-not (Test-Path -LiteralPath $ZipPath)) {
+    $Logger = Get-Logger
     $Logger.Info("File not found: $ZipPath")
     throw "File not found: $ZipPath"
   }

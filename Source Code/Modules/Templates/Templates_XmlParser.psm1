@@ -114,15 +114,58 @@ function Get-TemplatesFromChangeContent {
           ColumnName            = $columnName
           IsOverwritingTemplate = $isOverwrite
           Content               = $vbContent
+          FetchContentFromDb    = $false
         })
       }
     }
   }
+  # Third pass: Separate handling for overwrite-only changes
+  # These are DbObjects where the Diff only toggles IsOverwritingTemplate without any Template content.
+  # The actual template VB code exists in the database and must be fetched by the exporter.
+  Write-Host "  [DEBUG] Checking for overwrite-only changes (no Template content in Diff)..." -ForegroundColor Gray
+
+  $reOverwriteValue = [regex]::new(
+    "(?s)<Op\b[^>]*(?:Columnname|ColumnName)\s*=\s*[""']IsOverwritingTemplate[""'][^>]*>.*?<Value>\s*(True|False)\s*</Value>"
+  )
+
+  foreach ($dboMatch in $reDbObject.Matches($text)) {
+    $dboText = $dboMatch.Value
+
+    $mKey = $reObjectKeyTP.Match($dboText)
+    if (-not $mKey.Success) { continue }
+
+    $tableName  = Sanitize-FilePart $mKey.Groups[1].Value
+    $columnName = Sanitize-FilePart $mKey.Groups[2].Value
+    if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
+    if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
+
+    foreach ($diffMatch in $reDiff.Matches($dboText)) {
+      $diff = $diffMatch.Value
+
+      # Skip if this Diff already has Template content (handled by second pass)
+      if ($reTemplateValue.IsMatch($diff)) { continue }
+
+      # Check if this Diff has an IsOverwritingTemplate Op
+      $mOverwrite = $reOverwriteValue.Match($diff)
+      if (-not $mOverwrite.Success) { continue }
+
+      $overwriteFlag = ($mOverwrite.Groups[1].Value.Trim() -eq 'True')
+
+      Write-Host "Found overwrite-only change for: $tableName -> $columnName (Overwrite: $overwriteFlag) [Content to be fetched from DB]" -ForegroundColor Yellow
+      $Logger = Get-Logger
+      $Logger.Info("Found overwrite-only change for: $tableName -> $columnName (Overwrite: $overwriteFlag) [Content to be fetched from DB]")
+
+      $templates.Add([pscustomobject]@{
+        TableName             = $tableName
+        ColumnName            = $columnName
+        IsOverwritingTemplate = $overwriteFlag
+        Content               = $null
+        FetchContentFromDb    = $true
+      })
+    }
+  }
+
   $templates = $templates | Sort-Object TableName, ColumnName, IsOverwritingTemplate, Content -Unique
-  #$Logger = Get-Logger
-  #foreach ($t in $Templates) {
-  #$Logger.info("Found template for: $t.TableName -> $t.ColumnName (Overwrite: t.$IsOverwritingTemplate)")
-  #}
   return $templates
 }
 

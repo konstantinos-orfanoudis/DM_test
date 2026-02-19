@@ -48,6 +48,7 @@ function Write-TableScriptsAsVbNetFiles {
     }
 
     If($s.OnSavedScript){
+       $Logger = Get-Logger
        $fileName = "TableScript_" + $TableName +"_saved" + ".vb"
        $fileName = ('{0:D3}-{1}' -f ($counter + 1), $fileName)
        $filePath = Join-Path $OutDir $fileName
