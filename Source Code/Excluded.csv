@@ -1,0 +1,11 @@
+TableName,ColumnName
+Person,DeactivationEnd
+Person,DeactivationStart
+Person,DialogUserSalt
+Person,UID_RealPerson
+Person,UID_X500Person
+AttestationPolicy,IsSetApprovalStateOnApproved
+AttestationPolicy,IsSetApprovalStateOnDenied
+AttestationPolicy,LimitOfOldCases
+PWODecisionRuleRulerDetect,SQLQueryObjectsToRecalc
+Eset,IsITShopOnly

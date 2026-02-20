@@ -1,0 +1,12 @@
+{
+  "DMConfigDir":"C:\\Intragen\\Deployment\\Config\\Example",
+  "OutPath":"C:\\Users\\OneIM\\Desktop\\Outpath",
+  "LogPath":"C:\\Users\\OneIM\\Desktop\\Project\\Logs",
+  "NLoggerDLL":"C:\\Program Files\\One Identity\\One Identity Manager\\NLog.dll",
+  "IncludeEmptyValues": true,
+  "PreviewXml" : false,
+  "CSVMode": false,
+  "DMDll":"C:\\Users\\OneIM\\Desktop\\Installation_DeploymentManager\\DeploymentManager-4.0.6-beta\\Intragen.Deployment.OneIdentity.dll",
+  "DMPassword": "[E]01000000d08c9ddf0115d1118c7a00c04fc297eb01000000cb59e461e15f5d4fa1fffd37942008ad0000000002000000000003660000c00000001000000073c8bd15944c4230ab5411bf0dfb3a6a0000000004800000a000000010000000a66d3cfa983989dc8845c7bb4be121242000000048ac5b367961051b40764c6e1386050bd1b71a929b445f1f2f5e9296c56e75a214000000fac4cce8ba1e5c3d3540ccf833bbc39d49780fb1",
+  "ExcludedColumnsCSV" : "C:\\Users\\OneIM\\Desktop\\DM_test-Demo\\Demo\\Source Code\\Excluded.csv"
+}
