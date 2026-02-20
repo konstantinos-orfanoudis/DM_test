@@ -1,3 +1,5 @@
+Import-Module "$PSScriptRoot\..\Common\XDateCheck.psm1" -Force
+
 function Get-DialogTableScriptsFromChangeLabel {
   [CmdletBinding()]
   param(
@@ -14,6 +16,9 @@ function Get-DialogTableScriptsFromChangeLabel {
   if (-not (Test-Path -LiteralPath $ZipPath)) {
     throw "File not found: $ZipPath"
   }
+
+  # Extract change label creation date
+  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
 
   $text = Get-Content -LiteralPath $ZipPath -Raw
 
@@ -93,6 +98,15 @@ function Get-DialogTableScriptsFromChangeLabel {
         $existing.OnDiscardingScript = $existing.OnDiscardingScript -or $onDiscarding
       }
       continue
+    }
+
+    # --- XDateUpdated freshness check (first time seeing this UID_DialogTable) ---
+    if ($null -ne $labelDate) {
+      $allow = Confirm-ExportIfStale -TableName 'DialogTable' `
+                 -WhereClause "UID_DialogTable = '$uidDialogTable'" `
+                 -LabelDate $labelDate `
+                 -ObjectDescription "DialogTable (UID = $uidDialogTable)"
+      if (-not $allow) { continue }
     }
 
     $rows.Add([pscustomobject]@{

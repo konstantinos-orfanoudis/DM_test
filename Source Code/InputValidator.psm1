@@ -174,7 +174,9 @@ if ($logDir -and -not (Test-Path -LiteralPath $logDir)) {
   New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 }
 
-return [pscustomobject]@{ 
+$TableNameMapCSV = [string](Get-ConfigPropValue $config "TableNameMapCSV")
+
+return [pscustomobject]@{
   DMConfigDir        = $DMConfigDir
   OutPath            = $OutPath
   LogPath            = $LogPath
@@ -183,6 +185,7 @@ return [pscustomobject]@{
   IncludeEmptyValues = [bool]$IncludeEmptyValues
   PreviewXml         = [bool]$PreviewXml
   CSVMode            = [bool]$CSVMode
+  TableNameMapCSV    = $TableNameMapCSV
 }
 
 }

@@ -1,3 +1,5 @@
+Import-Module "$PSScriptRoot\..\Common\XDateCheck.psm1" -Force
+
 function Get-ScriptKeysFromChangeLabel {
   [CmdletBinding()]
   param(
@@ -16,6 +18,9 @@ function Get-ScriptKeysFromChangeLabel {
     throw "File not found: $ZipPath"
   }
 
+  # Extract change label creation date
+  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
+
   $text = Get-Content -LiteralPath $ZipPath -Raw
 
   # Decode entities a few times (safe even if already decoded)
@@ -32,6 +37,14 @@ function Get-ScriptKeysFromChangeLabel {
   foreach ($m in [regex]::Matches($text, $pattern)) {
     $k = $m.Groups['p'].Value.Trim()
     if ($k -and $seen.Add($k)) {
+      # --- XDateUpdated freshness check ---
+      if ($null -ne $labelDate) {
+        $allow = Confirm-ExportIfStale -TableName $TypeName `
+                   -WhereClause "UID_$TypeName = '$k'" `
+                   -LabelDate $labelDate `
+                   -ObjectDescription "$TypeName (UID = $k)"
+        if (-not $allow) { continue }
+      }
       [void]$keys.Add($k)
     }
   }

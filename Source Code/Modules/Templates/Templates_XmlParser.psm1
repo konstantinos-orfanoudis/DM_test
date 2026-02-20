@@ -1,3 +1,5 @@
+Import-Module "$PSScriptRoot\..\Common\XDateCheck.psm1" -Force
+
 function Get-TemplatesFromChangeContent {
   [CmdletBinding()]
   param(
@@ -11,6 +13,9 @@ function Get-TemplatesFromChangeContent {
     $Logger.Info("File not found: $ZipPath" )
     throw "File not found: $ZipPath" 
   }
+
+  # Extract change label creation date (loads XML separately from the regex text below)
+  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
 
   # Read whole file + decode a few times (handles &lt; and &amp;lt;)
   $text = Get-Content -LiteralPath $ZipPath -Raw
@@ -81,6 +86,8 @@ function Get-TemplatesFromChangeContent {
     $columnName = "UnknownColumn"
 
     $mKey = $reObjectKeyTP.Match($dboText)
+    # Capture raw UID_DialogColumn before sanitization (needed for DB freshness check)
+    $uidDialogColumn = if ($mKey.Success) { $mKey.Groups[2].Value } else { $null }
     if ($mKey.Success) {
       $tableName  = $mKey.Groups[1].Value
       $columnName = $mKey.Groups[2].Value
@@ -90,6 +97,15 @@ function Get-TemplatesFromChangeContent {
     $columnName = Sanitize-FilePart $columnName
     if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
+
+    # --- XDateUpdated freshness check (pass 2) ---
+    if ($null -ne $labelDate -and -not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+      $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
+                 -WhereClause "UID_DialogColumn = '$uidDialogColumn'" `
+                 -LabelDate $labelDate `
+                 -ObjectDescription "DialogColumn '$tableName.$columnName' (UID = $uidDialogColumn)"
+      if (-not $allow) { continue }
+    }
 
     $objectKey = "$tableName|$columnName"
     $isOverwrite = if ($overwriteMap.ContainsKey($objectKey)) { $overwriteMap[$objectKey] } else { $false }
@@ -134,10 +150,21 @@ function Get-TemplatesFromChangeContent {
     $mKey = $reObjectKeyTP.Match($dboText)
     if (-not $mKey.Success) { continue }
 
+    # Capture raw UID_DialogColumn before sanitization
+    $uidDialogColumn = $mKey.Groups[2].Value
     $tableName  = Sanitize-FilePart $mKey.Groups[1].Value
     $columnName = Sanitize-FilePart $mKey.Groups[2].Value
     if ([string]::IsNullOrWhiteSpace($tableName))  { $tableName  = "UnknownTable" }
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
+
+    # --- XDateUpdated freshness check (pass 3) ---
+    if ($null -ne $labelDate -and -not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+      $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
+                 -WhereClause "UID_DialogColumn = '$uidDialogColumn'" `
+                 -LabelDate $labelDate `
+                 -ObjectDescription "DialogColumn '$tableName.$columnName' (UID = $uidDialogColumn)"
+      if (-not $allow) { continue }
+    }
 
     foreach ($diffMatch in $reDiff.Matches($dboText)) {
       $diff = $diffMatch.Value

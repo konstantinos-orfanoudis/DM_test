@@ -1,3 +1,5 @@
+Import-Module "$PSScriptRoot\..\Common\XDateCheck.psm1" -Force
+
 function Get-FormatScriptKeysFromChangeLabel {
   [CmdletBinding()]
   param(
@@ -9,11 +11,13 @@ function Get-FormatScriptKeysFromChangeLabel {
     [ValidateNotNullOrWhiteSpace()]
     [string]$TypeName = "DialogColumn"   # the <T> value to match
   )
-  
+
   if (-not (Test-Path -LiteralPath $ZipPath)) {
-    
     throw "File not found: $ZipPath"
   }
+
+  # Extract change label creation date
+  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
 
   $text = Get-Content -LiteralPath $ZipPath -Raw
 
@@ -22,27 +26,33 @@ function Get-FormatScriptKeysFromChangeLabel {
     $text = [System.Net.WebUtility]::HtmlDecode($text)
   }
 
-  # Match: <T>DialogScript</T><P>...</P> (allow whitespace/newlines)
-  $pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
-
   $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
   $keys = New-Object 'System.Collections.Generic.List[string]'
 
-$dbObjectPattern = '(?is)<DbObject\b.*?>.*?</DbObject>'
-$pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
+  $dbObjectPattern = '(?is)<DbObject\b.*?>.*?</DbObject>'
+  $pattern = '(?is)<T>\s*' + [regex]::Escape($TypeName) + '\s*</T>\s*<P>\s*(?<p>[^<\s]+)\s*</P>'
 
-foreach ($db in [regex]::Matches($text, $dbObjectPattern)) {
-  $dbText = $db.Value
-  if ($dbText -notmatch 'Columnname\s*=\s*"FormatScript"') { continue }
+  foreach ($db in [regex]::Matches($text, $dbObjectPattern)) {
+    $dbText = $db.Value
+    if ($dbText -notmatch 'Columnname\s*=\s*"FormatScript"') { continue }
 
-  foreach ($m in [regex]::Matches($dbText, $pattern)) {
-    $k = $m.Groups['p'].Value.Trim()
-    if ($k -and $seen.Add($k)) { [void]$keys.Add($k) }
+    foreach ($m in [regex]::Matches($dbText, $pattern)) {
+      $k = $m.Groups['p'].Value.Trim()
+      if ($k -and $seen.Add($k)) {
+        # --- XDateUpdated freshness check ---
+        if ($null -ne $labelDate) {
+          $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
+                     -WhereClause "UID_DialogColumn = '$k'" `
+                     -LabelDate $labelDate `
+                     -ObjectDescription "DialogColumn (FormatScript, UID = $k)"
+          if (-not $allow) { continue }
+        }
+        [void]$keys.Add($k)
+      }
+    }
   }
-}
 
   return $keys
-  
 }
 
 # Export module members

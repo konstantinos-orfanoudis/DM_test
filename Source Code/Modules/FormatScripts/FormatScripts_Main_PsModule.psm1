@@ -49,7 +49,10 @@ param(
   [switch]$IncludeEmptyValues,
 
   [Parameter(Mandatory = $false)]
-  [string]$DMPassword = ""
+  [string]$DMPassword = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$TableNameMapCSV = ""
 )
 
 #region Module Imports

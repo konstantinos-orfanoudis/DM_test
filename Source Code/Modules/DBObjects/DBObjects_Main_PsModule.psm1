@@ -72,7 +72,10 @@ param(
   [string]$DMDll,
 
   [Parameter(Mandatory = $false)]
-  [string]$DMPassword = ""
+  [string]$DMPassword = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$TableNameMapCSV = ""
 )
 
 #region Module Imports
@@ -166,7 +169,7 @@ try {
   $Logger.info("Exporting to: $outpathfolder")
   
   if ($CSVMode) {
-    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml | Out-Null
+    Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml -TableNameMapCsvPath $TableNameMapCSV | Out-Null
   }
   else {
     Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml | Out-Null

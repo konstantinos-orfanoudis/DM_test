@@ -219,6 +219,9 @@ try {
       if ($config.CSVMode -eq $true) {
         $commonParams['CSVMode'] = $true
       }
+      if (-not [string]::IsNullOrWhiteSpace($config.TableNameMapCSV)) {
+        $commonParams['TableNameMapCSV'] = $config.TableNameMapCSV
+      }
 
       # Process DBObjects
       

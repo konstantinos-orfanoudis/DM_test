@@ -54,11 +54,24 @@ function Export-ToCsvMode {
   param(
     [Parameter(Mandatory)][object[]]$DbObjects,
     [Parameter(Mandatory)][string]$OutPath,
-    [switch]$PreviewXml
+    [switch]$PreviewXml,
+    [string]$TableNameMapCsvPath = ""
   )
  
  
- 
+  
+  # Build table name rephrase map from optional CSV (CSV mode only)
+  $tableNameMap = @{}
+  if (-not [string]::IsNullOrWhiteSpace($TableNameMapCsvPath) -and
+      (Test-Path -LiteralPath $TableNameMapCsvPath)) {
+    Import-Csv -LiteralPath $TableNameMapCsvPath | ForEach-Object {
+      if (-not [string]::IsNullOrWhiteSpace($_.TableName) -and
+          -not [string]::IsNullOrWhiteSpace($_.TemplateName)) {
+        $tableNameMap[$_.TableName.Trim()] = $_.TemplateName.Trim()
+      }
+    }
+  }
+
   # Build key map: TableName -> PKName (raw, may be composite with spaces)
   $keyMap = [ordered]@{}
   
@@ -137,7 +150,8 @@ function Export-ToCsvMode {
  $counter = 0
   foreach ($tableName in $columnsByTable.Keys) {
     # Paths for this table with timestamp
-    $tableXmlPath = Join-Path $OutPath "Template_${tableName}.xml"
+    $displayName = if ($tableNameMap.ContainsKey($tableName)) { $tableNameMap[$tableName] } else { $tableName }
+    $tableXmlPath = Join-Path $OutPath "Template_${displayName}.xml"
     $fileName = ('{0:D3}-{1}' -f ($counter + 1), $tableName)
     $tableCsvPath = Join-Path $OutPath "$fileName.csv"
     $counter++

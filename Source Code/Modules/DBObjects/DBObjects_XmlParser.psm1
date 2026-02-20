@@ -10,7 +10,9 @@
   Extended to also capture ChangeContent payloads that are <Diff>...</Diff>.
   In that case, TableName and PkValue are derived from the sibling ObjectKey column.
 #>
- 
+
+Import-Module "$PSScriptRoot\..\Common\XDateCheck.psm1" -Force
+
 function Remove-InvalidXmlChars {
 <#
   .SYNOPSIS
@@ -121,7 +123,10 @@ function Get-AllDbObjectsFromChangeContent {
   if (-not $changeColumns -or $changeColumns.Count -eq 0) {
     return @()
   }
- 
+
+  # Extract change label creation date once from the already-parsed outer doc
+  $labelDate = Get-ChangeLabelCreationDateFromDoc -Doc $outerDoc
+
   $allObjects = New-Object System.Collections.Generic.List[object]
 
  
@@ -180,6 +185,20 @@ function Get-AllDbObjectsFromChangeContent {
         if (-not [string]::IsNullOrWhiteSpace($sortOrderVal)) {
           [long]$parsed = 0
           if ([long]::TryParse($sortOrderVal, [ref]$parsed)) { $sortOrderNum = $parsed }
+        }
+
+        # --- XDateUpdated freshness check (Case 1) ---
+        # Build a WHERE clause that covers both single and composite PKs.
+        if ($null -ne $labelDate -and $null -ne $pkName) {
+          $pkArr = @($pkName)
+          $pvArr = @($pkValue)
+          $whereParts = for ($i = 0; $i -lt $pkArr.Count; $i++) {
+            "$($pkArr[$i]) = '$($pvArr[$i])'"
+          }
+          $whereStr = $whereParts -join " AND "
+          $allow = Confirm-ExportIfStale -TableName $tableName -WhereClause $whereStr `
+                     -LabelDate $labelDate -ObjectDescription "$tableName ($whereStr)"
+          if (-not $allow) { continue }
         }
 
         # Create object structure
@@ -324,6 +343,15 @@ function Get-AllDbObjectsFromChangeContent {
       return New-Object System.Collections.Generic.List[object]
     }
     Close-QSql
+
+    # --- XDateUpdated freshness check (Case 2) ---
+    if ($null -ne $labelDate) {
+      $allow = Confirm-ExportIfStale -TableName $tableName `
+                 -WhereClause "$pkcolumnName = '$pkValue'" `
+                 -LabelDate $labelDate `
+                 -ObjectDescription "$tableName ($pkcolumnName = $pkValue)"
+      if (-not $allow) { continue }
+    }
 
     # Read SortOrder from the sibling column on the wrapper row
     $sortOrderCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='SortOrder']")
