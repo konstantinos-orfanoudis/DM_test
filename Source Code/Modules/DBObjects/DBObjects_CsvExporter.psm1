@@ -271,14 +271,12 @@ function Export-ToCsvMode {
         foreach ($colName in $columnOrder) {
           $value = ""
          
-          # For PK columns use the authoritative value from obj.PkValue (via pkValueMap)
-          # rather than obj.Columns — PK columns may have been filtered out of Columns
-          # by permissions, and pkValueMap is always populated from the parsed Key/Table.
+          # Check if it's one of the PK parts
           if ($pkValueMap.ContainsKey($colName)) {
             $value = $pkValueMap[$colName]
           }
           else {
-            # Non-PK column: read directly from the parsed column list.
+            # Find in columns array
             $col = $obj.Columns | Where-Object { $_.Name -eq $colName } | Select-Object -First 1
             if ($col) {
               $value = $col.Value

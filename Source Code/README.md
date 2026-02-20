@@ -1,4 +1,4 @@
-## OIM Export Tool
+# OIM Export Tool
 
 ## Overview
 
@@ -126,13 +126,8 @@ Test-Path "C:\...\Intragen.Deployment.OneIdentity.dll"
 ---
 
 ## Usage
-### Basic — Before First Run
 
-```powershell
-import-module "DM dll path"
-invoke-qdeploy -DeploymentPath "Path to DM ConfigDir" -consoleMode
-```
-### Basic  — uses config.json defaults
+### Basic — uses config.json defaults
 
 ```powershell
 .\MainPsModule.ps1 -ZipPath "C:\path\to\transport.zip"
