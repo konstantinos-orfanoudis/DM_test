@@ -97,6 +97,8 @@ function Export-ToNormalXml {
       foreach ($col in $obj.Columns) {
         if ([string]::IsNullOrWhiteSpace($col.Name)) { continue }
 
+        # Track which PK parts were written from Columns so the safety fallback below
+        # can detect and fill in any that were absent (e.g. filtered out).
         if ($col.IsPrimaryKey) { [void]$writtenPkSet.Add($col.Name) }
  
         $xw.WriteStartElement($col.Name, $nsDefault)
@@ -125,7 +127,9 @@ function Export-ToNormalXml {
         $xw.WriteEndElement() # </ColumnName>
       }
 
-      # Safety: write any PK parts that were NOT in Columns (edge case)
+      # Safety: write any PK parts that were NOT in Columns (e.g. filtered out by permissions).
+      # Written as flat plain values intentionally — no FK nesting — because there is no
+      # column metadata available at this point to determine the FK structure.
       for ($i = 0; $i -lt $pkParts.Count; $i++) {
         $pkPartName = $pkParts[$i]
         if (-not $writtenPkSet.Contains($pkPartName)) {

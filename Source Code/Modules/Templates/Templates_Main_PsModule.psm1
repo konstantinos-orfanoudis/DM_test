@@ -44,12 +44,12 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string]$DMDll,
-  
-  [Parameter(Mandatory = $false)]
-  [switch]$CSVMode,
 
   [Parameter(Mandatory = $false)]
   [switch]$IncludeEmptyValues,
+  
+  [Parameter(Mandatory = $false)]
+  [switch]$CSVMode,
 
   [Parameter(Mandatory = $false)]
   [string]$DMPassword = ""

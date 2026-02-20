@@ -7,3 +7,5 @@ Person,UID_X500Person
 AttestationPolicy,IsSetApprovalStateOnApproved
 AttestationPolicy,IsSetApprovalStateOnDenied
 AttestationPolicy,LimitOfOldCases
+PWODecisionRuleRulerDetect,SQLQueryObjectsToRecalc
+Eset,IsITShopOnly
