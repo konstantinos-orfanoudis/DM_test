@@ -72,83 +72,69 @@ Import-Module (Join-Path $commonDir "PsModuleLogin.psm1") -Force
 #region Main Execution
 try {
   $Logger = Get-Logger
-  $Logger.info("OIM Process Export Tool")
-  Write-Host "OIM Process Export Tool" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger.Info("OIM Process Export Tool")
 
-  # Step 1: Parse input XML
-  Write-Host "[1/3] Parsing input XML: $ZipPath"
-  $Logger.info("Parsing input XML: $ZipPath")
-  
-  # Step 2: Login to API
-  Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-  $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
+  # Step 1: Login to API (required before parsing - session used during XML parse)
+  $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
   $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
-  
-  # Get processes from the XML
+
+  # Step 2: Parse input XML (requires live session for DB lookups)
+  $Logger.Info("Parsing input XML: $ZipPath")
   $processes = GetAllProcessFromChangeLabel -ZipPath $ZipPath -Session $session
   $Logger = Get-Logger
-  $Logger.info("Found $($processes.Count) process(es)")
-  Write-Host "Found $($processes.Count) process(es)" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger.Info("Found $($processes.Count) process(es)")
+  Write-Host "  Found $($processes.Count) process(es)" -ForegroundColor Cyan
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
   if ($global:XDateCheck_StaleAbortTriggered) {
     Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
-    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
     foreach ($p in $processes) {
       Write-Host "    - $($p.Name) ($($p.TableName))" -ForegroundColor Gray
     }
     return
   }
 
-  # Step 3: Export Process
+  # Step 3: Export Processes
   if ($processes.Count -gt 0) {
-    
-    $counter = 000
-    foreach($pr in $processes){
+    $outpathfolder = Join-Path $OutPath "Processes"
+    if (-not (Test-Path $outpathfolder)) {
+      New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
+    }
+    Write-Host "  Exporting to: $outpathfolder" -ForegroundColor Gray
+    $Logger.Info("Exporting to: $outpathfolder")
+
+    $counter = 0
+    foreach ($pr in $processes) {
       $ProcessName = $pr.Name
-      $TableName = $pr.TableName
-      $outpathfolder = "$OutPath"+"\Processes"  
-      if (-not (Test-Path $outpathfolder)) {
-          New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
-      }
-      $ProcessOutPath = ('{0:D3}-{1}' -f ($counter), $ProcessName) 
-      $ProcessOutPath = Join-Path  $outpathfolder "$ProcessOutPath.xml"
-         
-      Write-Host "  Exporting process: $ProcessName ($TableName)" -ForegroundColor Gray
-      $Logger.info("Exporting process: $ProcessName ($TableName)")
+      $TableName   = $pr.TableName
+      $ProcessOutPath = Join-Path $outpathfolder ('{0:D3}-{1}.xml' -f $counter, $ProcessName)
+      Write-Host "    $ProcessName ($TableName)" -ForegroundColor Gray
+      $Logger.Info("Exporting process: $ProcessName ($TableName)")
       Export-Process -Name $ProcessName -TableName $TableName -OutFilePath $ProcessOutPath
-      
-      $counter++ 
+      $counter++
     }
     $Logger = Get-Logger
-    $Logger.info("Exporting to: $outpathfolder")
-    Write-Host "[3/3] Exporting to: $outpathfolder"
-    Write-Host ""
-    Write-Host "Export completed successfully!" -ForegroundColor Green
-    $Logger.info("Export completed successfully!")
+    $Logger.Info("Export completed successfully!")
   }
   else {
     $Logger = Get-Logger
-    $Logger.info("No processes found in: $ZipPath")
-    Write-Host "No processes found in: $ZipPath" -ForegroundColor Yellow
+    Write-Host "  No processes found in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No processes found in: $ZipPath")
   }
 }
 catch {
   $Logger = Get-Logger
-  $Logger.info("ERROR: Export failed!")
-  $Logger.info($_.Exception.Message)
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
+  $Logger.Info("ERROR: Export failed!")
+  $Logger.Info($_.Exception.Message)
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
     $Logger = Get-Logger
-    $Logger.info("Stack Trace:")
-    $Logger.info($_.ScriptStackTrace)
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    $Logger.Info("Stack Trace:")
+    $Logger.Info($_.ScriptStackTrace)
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }

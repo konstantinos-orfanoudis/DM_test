@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OIM Export Tool – Code Explanation</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10.5pt;
+    color: #1a1a2e;
+    line-height: 1.65;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 32px 60px;
+  }
+
+  /* Cover */
+  .cover {
+    min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; text-align: center; padding: 60px 0;
+    border-bottom: 3px solid #16213e; page-break-after: always;
+  }
+  .cover .badge { font-size:9pt; letter-spacing:4px; text-transform:uppercase; color:#0f3460; margin-bottom:30px; }
+  .cover h1 { font-size:30pt; font-weight:700; color:#0f3460; margin-bottom:8px; }
+  .cover .sub { font-size:13pt; color:#555; margin-bottom:40px; }
+  .cover .meta { display:inline-grid; grid-template-columns:auto auto; gap:5px 20px;
+    text-align:left; font-size:10pt; background:#f0f4fa; padding:18px 28px;
+    border-radius:8px; margin:0 auto; }
+  .cover .meta .lbl { font-weight:600; color:#0f3460; }
+  .cover .hint { margin-top:36px; font-size:9pt; color:#888; }
+
+  /* TOC */
+  .toc { page-break-after:always; padding-top:36px; }
+  .toc h2 { font-size:16pt; color:#0f3460; border-bottom:2px solid #0f3460; padding-bottom:5px; margin-bottom:16px; }
+  .toc ol { list-style:none; counter-reset:tc; }
+  .toc li { counter-increment:tc; padding:3px 0; border-bottom:1px dotted #ccc; }
+  .toc li::before { content:counter(tc)"."; font-weight:700; color:#0f3460; margin-right:8px; }
+  .toc li a { text-decoration:none; color:#1a1a2e; }
+  .toc .sub { padding-left:24px; font-size:9.5pt; color:#555; }
+  .toc .sub::before { content:""; }
+
+  /* Sections */
+  section { page-break-inside:avoid; margin-top:44px; }
+  h2.st { font-size:15pt; color:#0f3460; border-left:5px solid #0f3460;
+    padding-left:12px; margin-bottom:16px; page-break-after:avoid; }
+  h3 { font-size:11.5pt; color:#16213e; margin:20px 0 8px; page-break-after:avoid;
+    border-bottom:1px solid #e0e5ef; padding-bottom:4px; }
+  h4 { font-size:10.5pt; color:#0f3460; margin:14px 0 6px; }
+  p { margin-bottom:9px; }
+
+  /* Callouts */
+  .note,.warn,.tip,.key {
+    padding:10px 14px; border-radius:4px; margin:12px 0; font-size:10pt; }
+  .note   { background:#e8f4fd; border-left:4px solid #2196f3; }
+  .warn   { background:#fff8e1; border-left:4px solid #ff9800; }
+  .tip    { background:#e8f5e9; border-left:4px solid #4caf50; }
+  .key    { background:#fce4ec; border-left:4px solid #e91e63; }
+  .note strong,.warn strong,.tip strong,.key strong { display:block; margin-bottom:3px; }
+
+  /* Code blocks */
+  pre, code {
+    font-family:"Cascadia Code","Consolas","Courier New",monospace;
+    font-size:9pt;
+  }
+  code { background:#f4f6fa; padding:1px 5px; border-radius:3px; }
+
+  /* Annotated code: side-by-side */
+  .annotated {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:0;
+    border:1px solid #cfd8e3;
+    border-radius:6px;
+    overflow:hidden;
+    margin:12px 0;
+    font-size:9pt;
+  }
+  .annotated .code-pane {
+    background:#1a1a2e;
+    color:#e0e0e0;
+    padding:14px 16px;
+    font-family:"Cascadia Code",Consolas,monospace;
+    line-height:1.6;
+    overflow-x:auto;
+    white-space:pre-wrap;
+    word-break:break-all;
+  }
+  .annotated .ann-pane {
+    background:#f7f9fd;
+    padding:14px 16px;
+    line-height:1.6;
+    border-left:1px solid #cfd8e3;
+  }
+  .annotated .ann-pane .an {
+    padding:3px 0;
+    font-size:9pt;
+    color:#333;
+  }
+  .annotated .ann-pane .an .ln {
+    display:inline-block;
+    min-width:28px;
+    font-weight:700;
+    color:#0f3460;
+    font-family:Consolas,monospace;
+  }
+
+  /* Plain dark code block */
+  pre {
+    background:#1a1a2e; color:#e0e0e0; padding:13px 16px;
+    border-radius:6px; overflow-x:auto; margin:10px 0;
+    line-height:1.5; white-space:pre-wrap; word-break:break-all;
+  }
+  pre .kw  { color:#79b8ff; }
+  pre .str { color:#9ecbff; }
+  pre .cmt { color:#6a737d; font-style:italic; }
+  pre .val { color:#f97583; }
+  pre .fn  { color:#b392f0; }
+  pre .hl  { background:#2d3561; border-radius:2px; }
+
+  /* Tables */
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:9.5pt; }
+  th { background:#0f3460; color:#fff; text-align:left; padding:7px 9px; font-weight:600; }
+  td { padding:6px 9px; border-bottom:1px solid #e0e5ef; vertical-align:top; }
+  tr:nth-child(even) td { background:#f7f9fd; }
+  td code { font-size:8.5pt; }
+
+  /* Flow / tree */
+  .flow, .tree {
+    background:#f4f6fa; border:1px solid #cfd8e3; border-radius:6px;
+    padding:13px 18px; font-family:"Cascadia Code",Consolas,monospace;
+    font-size:9pt; line-height:1.8; white-space:pre; margin:12px 0;
+    overflow-x:auto;
+  }
+
+  /* Object diagram */
+  .obj-box {
+    display:inline-block; border:2px solid #0f3460; border-radius:6px;
+    overflow:hidden; margin:8px 4px; vertical-align:top; font-size:9pt;
+    min-width:200px;
+  }
+  .obj-box .obj-title {
+    background:#0f3460; color:#fff; padding:5px 12px;
+    font-weight:700; font-family:Consolas,monospace;
+  }
+  .obj-box table { margin:0; }
+  .obj-box td { padding:4px 10px; font-family:Consolas,monospace; font-size:8.5pt; }
+  .obj-box .pk { background:#fff3cd; font-weight:700; }
+  .obj-box .fk { background:#d4edda; }
+
+  @media print {
+    body { max-width:100%; padding:0; }
+    .cover, .toc { page-break-after:always; }
+    section { page-break-inside:auto; }
+    h2.st, h3, h4 { page-break-after:avoid; }
+    pre, .annotated { page-break-inside:avoid; }
+    @page { margin:16mm 14mm; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="badge">One Identity Manager · Internal · Developer Reference</div>
+  <h1>OIM Export Tool</h1>
+  <div class="sub">Code Explanation &amp; Developer Review</div>
+  <div class="meta">
+    <span class="lbl">Purpose</span>   <span>Code walkthrough for developer review</span>
+    <span class="lbl">Version</span>   <span>2.0 (Feb 2026)</span>
+    <span class="lbl">Companion</span> <span>OIM_Export_Tool_Documentation.html</span>
+    <span class="lbl">Language</span>  <span>PowerShell 5.1 / 7+</span>
+  </div>
+  <div class="hint">Open in browser → File → Print → Save as PDF</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#zip-structure">OIM Transport ZIP Structure</a></li>
+    <li><a href="#entry-point">Entry Point — MainPsModule.ps1</a></li>
+    <li><a href="#zip-extraction">ZIP Extraction — ExtractXMLFromZip.psm1</a></li>
+    <li><a href="#xdatecheck">XDateCheck.psm1 — Deep Dive</a></li>
+    <li class="sub">4.1 Global state &amp; null-guards</li>
+    <li class="sub">4.2 Get-XDateUpdatedFromBlock</li>
+    <li class="sub">4.3 Show-StaleObjectDialog (WinForms)</li>
+    <li class="sub">4.4 Confirm-ExportIfStale — full logic</li>
+    <li><a href="#dbobjects-parser">DBObjects_XmlParser.psm1 — Case 1 &amp; Case 2</a></li>
+    <li class="sub">5.1 Outer document load</li>
+    <li class="sub">5.2 Case 1 — full DbObject snapshot</li>
+    <li class="sub">5.3 Case 2 — Diff payload</li>
+    <li class="sub">5.4 FK metadata enrichment</li>
+    <li class="sub">5.5 SortOrder</li>
+    <li><a href="#process-parser">Process_XmlParser.psm1 — Path 1 &amp; Path 2</a></li>
+    <li><a href="#templates-parser">Templates_XmlParser.psm1 — Three-pass Algorithm</a></li>
+    <li><a href="#script-parsers">Script Parsers (Scripts / FormatScripts / CanSee / CanEdit)</a></li>
+    <li><a href="#tablescripts-parser">TableScripts_XmlParser.psm1</a></li>
+    <li><a href="#dbobjects-exporters">DBObjects Exporters — Normal XML vs CSV Mode</a></li>
+    <li><a href="#data-structures">Data Structures Reference</a></li>
+    <li><a href="#sql-pattern">SQL Access Pattern</a></li>
+    <li><a href="#global-lifecycle">Global State Lifecycle</a></li>
+    <li><a href="#report-mode-flow">Report Mode — Full Flow</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════ 1. ZIP STRUCTURE ══════════════════════════════════════ -->
+<section id="zip-structure">
+<h2 class="st">1 · OIM Transport ZIP Structure</h2>
+<p>
+  An OIM transport ZIP exported from Transport Manager has this internal layout.
+  The tool navigates this structure to find the XML payloads.
+</p>
+<div class="tree">export.zip
+└── TagTransport\               ← fixed folder name the tool searches for
+    ├── 001_MyChangeLabel\      ← one folder per change label in the transport
+    │   └── TagData.xml         ← the only file the tool reads (others ignored)
+    └── 002_AnotherLabel\
+        └── TagData.xml</div>
+
+<p>
+  A <code>TagData.xml</code> file is a flat OIM-dialect XML. Its top-level rows are
+  <code>&lt;DbObject&gt;</code> elements, each representing one row from a database table.
+  Most rows belong to the <code>QBMTaggedChange</code> table (the change-label record), but
+  two embedded formats for actual changed data appear inside:
+</p>
+<table>
+  <tr><th>Embedded format</th><th>Column carrying it</th><th>Description</th></tr>
+  <tr>
+    <td><strong>Full snapshot</strong><br><code>&lt;DbObject&gt;…&lt;/DbObject&gt;</code></td>
+    <td><code>ChangeContent</code></td>
+    <td>Complete row including all column values. Used for table-type objects (Person, Org…).</td>
+  </tr>
+  <tr>
+    <td><strong>Diff</strong><br><code>&lt;Diff&gt;&lt;Op…&gt;&lt;/Diff&gt;</code></td>
+    <td><code>ChangeContent</code></td>
+    <td>Only changed columns listed as <code>&lt;Op Columnname="…"&gt;</code> with old/new values. Lighter format.</td>
+  </tr>
+</table>
+<p>
+  The <code>ObjectKey</code> sibling column on the same row carries an XML-serialised key
+  structure identifying the table and primary-key value of the changed object.
+</p>
+</section>
+
+<!-- ═══════════════ 2. ENTRY POINT ═══════════════════════════════════════ -->
+<section id="entry-point">
+<h2 class="st">2 · Entry Point — MainPsModule.ps1</h2>
+
+<p>
+  <code>MainPsModule.ps1</code> is the sole entry point. It orchestrates three top-level
+  phases and then calls the eight module processors in sequence for each XML file found.
+</p>
+
+<h3>Phase overview</h3>
+<div class="flow">Phase 1 — Extract
+  Resolve-TagDataXmlFromZip -ZipPath $ZipPath
+    Returns: [{ TempDir, XmlFilePath, ChildDir, TranspName }, …]
+
+Phase 2 — Configure
+  InputValidator @validatorParams
+    Reads config.json, merges CLI params, returns $config object.
+  $global:XDateCheck_ReportOnDenial      = $config.ReportOnDenial  (bool)
+  $global:XDateCheck_StaleAbortTriggered = $false
+
+Phase 3 — Process each XML file
+  foreach ($xmlFile in $xmlFiles)
+    $global:XDateCheck_StaleAbortTriggered = $false   ← reset per file
+    $FinalPath = $config.OutPath\&lt;TranspName&gt;\&lt;ChildDir&gt;\
+    DBObjects_Main_PsModule  @commonParams
+    Process_Main_PsModule    @commonParams
+    Templates_Main_PsModule  @commonParams
+    Scripts_Main_PsModule    @commonParams
+    TableScripts_Main_PsModule   @commonParams
+    FormatScripts_Main_PsModule  @commonParams
+    CanSeeScripts_Main_PsModule  @commonParams
+    CanEditScripts_Main_PsModule @commonParams
+
+Finally — cleanup
+  Remove-Item $xmlFile.TempDir  (always runs even on error)</div>
+
+<h3>The <code>$commonParams</code> hashtable</h3>
+<p>
+  Rather than repeating parameters in every call, a hashtable is splatted (<code>@commonParams</code>).
+  Optional parameters (empty strings, false switches) are excluded:
+</p>
+<pre>
+$commonParams = @{
+  ZipPath     = $xmlPath     <span class="cmt"># path to extracted TagData.xml</span>
+  OutPath     = $FinalPath   <span class="cmt"># per-label output directory</span>
+  DMConfigDir = $config.DMConfigDir
+  DMDll       = $config.DMDll
+}
+<span class="cmt"># Only added when non-empty / non-false:</span>
+$commonParams['LogPath']         = $config.LogPath        <span class="cmt"># if non-blank</span>
+$commonParams['DMPassword']      = $passwordToUse         <span class="cmt"># if non-blank</span>
+$commonParams['IncludeEmptyValues'] = $true               <span class="cmt"># only when $true</span>
+$commonParams['PreviewXml']      = $true                  <span class="cmt"># only when $true</span>
+$commonParams['CSVMode']         = $true                  <span class="cmt"># only when $true</span>
+$commonParams['TableNameMapCSV'] = $config.TableNameMapCSV <span class="cmt"># if non-blank</span></pre>
+
+<div class="note">
+  <strong>Why exclude false switches?</strong>
+  PowerShell switch parameters evaluate any bound value as the switch being present.
+  Passing <code>-IncludeEmptyValues $false</code> is equivalent to passing the switch
+  (which means true). So false-valued switches must simply not be included in the hashtable.
+</div>
+</section>
+
+<!-- ═══════════════ 3. ZIP EXTRACTION ════════════════════════════════════ -->
+<section id="zip-extraction">
+<h2 class="st">3 · ZIP Extraction — ExtractXMLFromZip.psm1</h2>
+
+<p>
+  <code>Resolve-TagDataXmlFromZip</code> extracts the ZIP to a unique temp directory
+  under <code>%TEMP%</code>, finds the <code>TagTransport</code> folder, then returns
+  metadata for every <code>TagData.xml</code> found in <em>direct child directories</em>
+  (non-recursive by design — nested ZIPs are not supported).
+</p>
+
+<pre>
+$tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("TagTransport_" + [guid]::NewGuid().ToString("N"))
+<span class="cmt"># → e.g. C:\Users\User\AppData\Local\Temp\TagTransport_a3f9e2...</span>
+
+Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempDir -Force
+
+$tagTransportDir = Get-ChildItem -LiteralPath $tempDir -Directory -Recurse |
+  Where-Object { $_.Name -eq "TagTransport" } |
+  Select-Object -First 1   <span class="cmt"># only the first match</span>
+
+foreach ($childDir in Get-ChildItem $tagTransportDir -Directory) {
+  $xmlFiles = Get-ChildItem -LiteralPath $childDir.FullName -File -Filter "TagData.xml"
+  <span class="cmt"># yields objects: { TempDir, XmlFilePath, ChildDir, TranspName }</span>
+}</pre>
+
+<p>
+  The <code>TempDir</code> is stored so <code>MainPsModule.ps1</code> can delete it in the
+  <code>finally</code> block. The <code>ChildDir</code> name (e.g. <code>001_MyLabel</code>)
+  has its leading number stripped (<code>-replace '^\d+_', ''</code>) when building the
+  output path to give a cleaner folder name.
+</p>
+</section>
+
+<!-- ═══════════════ 4. XDATECHECK ════════════════════════════════════════ -->
+<section id="xdatecheck">
+<h2 class="st">4 · XDateCheck.psm1 — Deep Dive</h2>
+
+<h3>4.1 Global state &amp; null-guards</h3>
+<p>
+  Each parser module imports <code>XDateCheck.psm1</code> with <code>-Force</code> which
+  normally re-executes the module body and would reset any <code>$script:</code> variables.
+  To survive this, state lives in <code>$global:</code> variables — but only initialised
+  when they are currently <code>$null</code>, preserving values set by an earlier import:
+</p>
+<pre>
+if ($null -eq $global:XDateCheck_ReportOnDenial)      { $global:XDateCheck_ReportOnDenial      = $true  }
+if ($null -eq $global:XDateCheck_StaleAbortTriggered) { $global:XDateCheck_StaleAbortTriggered = $false }</pre>
+<p>
+  <code>MainPsModule.ps1</code> always overwrites these <em>after</em> loading config (so
+  the null-guard default of <code>$true</code> is only a fallback if the module is used
+  standalone without the orchestrator).
+</p>
+
+<h3>4.2 Get-XDateUpdatedFromBlock</h3>
+<p>
+  Extracts an <code>XDateUpdated</code> date string from any decoded XML text block.
+  Two XML shapes exist in transport files — Op format (inside a Diff) and Column format
+  (inside a full DbObject). The function tries Op first because a QBMTaggedChange wrapper
+  row also has its own <code>XDateUpdated</code> in Column format; picking Op-first selects
+  the <em>target object's</em> date, not the wrapper's date.
+</p>
+
+<div class="annotated">
+<div class="code-pane"># Op / diff format (target object's date)
+$m = [regex]::Match($Block,
+  '(?is)&lt;Op\b[^&gt;]*\bColumn(?:name|Name)\s*=\s*"XDateUpdated"[^&gt;]*&gt;.*?&lt;Value&gt;\s*([^&lt;\s][^&lt;]*?)\s*&lt;/Value&gt;'
+)
+if ($m.Success) { return $m.Groups[1].Value.Trim() }
+
+# Full-row Column format (fallback)
+$m = [regex]::Match($Block,
+  '(?is)&lt;Column\b[^&gt;]*\bName\s*=\s*"XDateUpdated"[^&gt;]*&gt;.*?&lt;Value&gt;\s*([^&lt;\s][^&lt;]*?)\s*&lt;/Value&gt;'
+)
+if ($m.Success) { return $m.Groups[1].Value.Trim() }
+
+return $null</div>
+<div class="ann-pane">
+  <div class="an"><span class="ln">①</span> <code>(?is)</code> = case-insensitive + single-line (dot matches newline). Needed because XML may be multiline.</div>
+  <div class="an"><span class="ln">②</span> <code>Column(?:name|Name)</code> handles both <code>Columnname</code> (OIM older) and <code>ColumnName</code> (newer) attribute casing.</div>
+  <div class="an"><span class="ln">③</span> <code>[^&lt;\s][^&lt;]*?</code> — capture group: at least one non-space non-angle char, then lazy rest. Strips leading/trailing whitespace via Trim().</div>
+  <div class="an"><span class="ln">④</span> Op tried first → gets target object date. Column tried second → fallback for full-snapshot objects.</div>
+  <div class="an"><span class="ln">⑤</span> Returns <code>$null</code> when neither format is found → caller skips the check entirely (always exports).</div>
+</div>
+</div>
+
+<h3>4.3 Show-StaleObjectDialog — WinForms popup</h3>
+<p>
+  Creates a WinForms form at runtime (no pre-compiled assembly needed). Key design choices:
+</p>
+<table>
+  <tr><th>Property</th><th>Value</th><th>Reason</th></tr>
+  <tr><td><code>TopMost = $true</code></td><td>Always on top</td><td>Prevents popup from being hidden behind other windows during a long export run.</td></tr>
+  <tr><td><code>FormBorderStyle = FixedDialog</code></td><td>No resize</td><td>Fixed layout — avoids layout breaking on resize.</td></tr>
+  <tr><td><code>AcceptButton = $btnExport</code></td><td>Enter = Export</td><td>Safe default — pressing Enter exports rather than accidentally aborting.</td></tr>
+  <tr><td><code>CancelButton = $btnAbort</code></td><td>Escape = Abort</td><td>Standard Windows pattern; Escape cancels/aborts.</td></tr>
+  <tr><td><code>DialogResult</code></td><td>Yes / No</td><td>Returns from <code>ShowDialog()</code>; form is disposed immediately after.</td></tr>
+</table>
+
+<h3>4.4 Confirm-ExportIfStale — full decision logic</h3>
+<div class="flow">
+Confirm-ExportIfStale called with:
+  TableName, WhereClause, TransportXDateUpdated, ObjectDescription
+
+┌─ Is $global:XDateCheck_StaleAbortTriggered == $true?
+│    YES → return $true  (report mode: include all, suppress all popups)
+│
+├─ Is TransportXDateUpdated null/empty?
+│    YES → return $true  (no transport date to compare against)
+│
+├─ Parse TransportXDateUpdated → $transportDate [datetime]
+│    FAIL (parse error) → return $true (safe default)
+│
+├─ Query DB: SELECT XDateUpdated FROM {Table} WHERE {Clause}
+│    DB query error    → return $true (safe default)
+│    Object not in DB → return $true
+│    XDateUpdated null → return $true
+│
+├─ Parse DB date → $dbDate [datetime]
+│    FAIL → return $true (safe default)
+│
+├─ $dbDate ≤ $transportDate?
+│    YES → return $true  (fresh: DB not newer than transport)
+│
+└─ $dbDate &gt; $transportDate  (STALE)
+     Show-StaleObjectDialog  →  "Export" | "Abort"
+     │
+     ├─ "Export" → return $true
+     │
+     └─ "Abort"
+          ├─ $global:XDateCheck_ReportOnDenial == $true?
+          │    YES → $global:XDateCheck_StaleAbortTriggered = $true
+          │         return $true  (collect for report, write nothing)
+          │
+          └─ ReportOnDenial == $false
+               → return $false  (skip this object only)
+</div>
+</section>
+
+<!-- ═══════════════ 5. DBOBJECTS PARSER ══════════════════════════════════ -->
+<section id="dbobjects-parser">
+<h2 class="st">5 · DBObjects_XmlParser.psm1 — Case 1 &amp; Case 2</h2>
+
+<h3>5.1 Outer document load</h3>
+<p>
+  The TagData.xml is loaded as a proper <code>XmlDocument</code> with DTD processing and
+  external XML resolver disabled (XXE prevention):
+</p>
+<pre>
+$settings = New-Object System.Xml.XmlReaderSettings
+$settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore  <span class="cmt"># no DTD execution</span>
+$settings.XmlResolver   = $null                                <span class="cmt"># no external entity fetch</span>
+
+$reader = [System.Xml.XmlReader]::Create($ZipPath, $settings)
+$outerDoc = New-Object System.Xml.XmlDocument
+$outerDoc.XmlResolver = $null
+$outerDoc.Load($reader)    <span class="cmt"># reader closed in finally block</span>
+
+$changeColumns = $outerDoc.SelectNodes("//Column[@Name='ChangeContent']")</pre>
+
+<h3>5.2 Case 1 — Full DbObject snapshot</h3>
+<p>
+  When <code>ChangeContent</code> contains a full <code>&lt;DbObject&gt;</code> (or
+  <code>&lt;DbObjects&gt;</code> wrapper), the embedded XML is parsed into a second
+  <code>XmlDocument</code>. <code>Try-LoadEmbeddedXml</code> handles HTML-entity-escaped
+  values (e.g. <code>&amp;lt;</code> that must be decoded before parsing):
+</p>
+<pre>
+$innerDoc = Try-LoadEmbeddedXml -EmbeddedText $rawXml
+
+<span class="cmt"># Try with wrapper &lt;DbObjects&gt;&lt;DbObject&gt;…&lt;/DbObjects&gt;</span>
+$dbObjects = $innerDoc.SelectNodes('/DbObjects/DbObject')
+<span class="cmt"># Fall back to standalone &lt;DbObject&gt;</span>
+if (-not $dbObjects -or $dbObjects.Count -eq 0) {
+  $dbObjects = $innerDoc.SelectNodes('/DbObject')
+}
+
+foreach ($dbo in $dbObjects) {
+  $tableName = $dbo.SelectSingleNode('./Key/Table').GetAttribute('Name')
+
+  <span class="cmt"># PK: one or more &lt;Prop Name="…"&gt;&lt;Value&gt;…&lt;/Value&gt;&lt;/Prop&gt;</span>
+  $pkPropNode = $tableNode.SelectNodes('./Prop')
+  $pkName  = $pkPropNode.GetAttribute('Name') -split " "   <span class="cmt"># array for composite PK</span>
+  $pkValue = ($pkPropNode.SelectSingleNode('./Value')).InnerText -split " "
+
+  <span class="cmt"># XDateUpdated freshness check</span>
+  $xDateNode    = $dbo.SelectSingleNode('./Columns/Column[@Name="XDateUpdated"]/Value')
+  $transportDate = if ($xDateNode) { $xDateNode.InnerText.Trim() } else { $null }
+  $allow = Confirm-ExportIfStale -TableName $tableName -WhereClause $whereStr `
+             -TransportXDateUpdated $transportDate -ObjectDescription "..."
+  if (-not $allow) { continue }
+}</pre>
+
+<p>Parsed columns are extracted in two shapes:</p>
+<table>
+  <tr><th>Column type</th><th>XML structure</th><th>Result in object</th></tr>
+  <tr>
+    <td>Normal</td>
+    <td><code>&lt;Column Name="X"&gt;&lt;Value&gt;val&lt;/Value&gt;&lt;/Column&gt;</code></td>
+    <td><code>{ Name, Value, IsForeignKey=$false, IsPrimaryKey }</code></td>
+  </tr>
+  <tr>
+    <td>Foreign key</td>
+    <td><code>&lt;Column Name="UID_Org"&gt;&lt;Key&gt;&lt;Table Name="Org"&gt;&lt;Prop Name="UID_Org"&gt;…</code></td>
+    <td><code>{ Name, Value, IsForeignKey=$true, FkTableName, FkColumnName }</code></td>
+  </tr>
+</table>
+
+<h3>5.3 Case 2 — Diff payload</h3>
+<p>
+  When the embedded XML is a <code>&lt;Diff&gt;</code>, the table identity comes from the
+  <em>sibling</em> <code>ObjectKey</code> column (on the same QBMTaggedChange row), and
+  the primary key column name is looked up from the live database:
+</p>
+<pre>
+<span class="cmt"># ObjectKey is a sibling of ChangeContent on the same parent node</span>
+$objectKeyCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='ObjectKey']")
+$keyDoc = Try-LoadEmbeddedXml -EmbeddedText (Get-ColumnValue $objectKeyCol)
+
+$tableName = $keyDoc.SelectSingleNode('/Key/T').InnerText.Trim()
+$pkValue   = $keyDoc.SelectSingleNode('/Key/P').InnerText.Trim()
+
+<span class="cmt"># Look up PK column name from DialogColumn — excludes system tables</span>
+$s = Open-QSql
+$wc = "SELECT ColumnName FROM DialogColumn
+       WHERE IsPKMember = 1 AND UID_DialogTable IN (
+         SELECT UID_DialogTable FROM DialogTable
+         WHERE TableName = '$tableName'
+         AND TableName NOT IN ('Job','JobChain','JobEventGen',…))"
+$pr = Find-QSql $wc -dict
+$pkcolumnName = $pr["ColumnName"]
+Close-QSql
+
+<span class="cmt"># XDateUpdated from the Diff Op (Op tried before Column in Get-XDateUpdatedFromBlock)</span>
+$xdOp = $diffRoot.SelectSingleNode('./Op[@Columnname="XDateUpdated"]')
+$transportDate = if ($xdOp) { $xdOp.SelectSingleNode('./Value').InnerText.Trim() } else { $null }
+$allow = Confirm-ExportIfStale …
+
+<span class="cmt"># Convert Diff Ops to columns</span>
+foreach ($op in $diffRoot.SelectNodes('./Op')) {
+  $colName = $op.GetAttribute('Columnname')
+  $newVal  = $op.SelectSingleNode('./Value').InnerText
+  $oldVal  = $op.SelectSingleNode('./OldValue').InnerText
+  $diffObj.Columns.Add([pscustomobject]@{
+    Name=…; Value=$newVal; OldValue=$oldVal; IsDiffOp=$true; …
+  })
+}</pre>
+
+<h3>5.4 FK metadata enrichment</h3>
+<p>
+  After all objects are parsed, <code>Get-ForeignKeyMetadataPsModule</code> queries the OIM
+  session's in-memory table catalogue (<code>$connection.Tables.ForeignKeys.ColumnRelations</code>)
+  to discover which columns are foreign keys. This enriches columns that arrived as normal
+  columns (no <code>Key/Table</code> XML) but are actually FK references — typically
+  empty FK values the transport omitted the nested key structure for.
+</p>
+<pre>
+<span class="cmt"># ChildColumn: "ChildTable.ColumnName"  →  extract just the column name</span>
+<span class="cmt"># ParentColumn: "ParentTable.PKColumn"  →  extract table + column</span>
+$colName  = ($childCol  -split '\.')[1]
+$fkTable  = ($parentCol -split '\.')[0]
+$fkColumn = ($parentCol -split '\.')[1]
+
+<span class="cmt"># Enrich in-place: only columns not already marked as FK</span>
+$col | Add-Member -NotePropertyName 'IsForeignKey' -NotePropertyValue $true -Force
+$col | Add-Member -NotePropertyName 'FkTableName'  -NotePropertyValue $fkTable -Force</pre>
+
+<h3>5.5 SortOrder</h3>
+<p>
+  The <code>SortOrder</code> column lives on the <em>QBMTaggedChange</em> wrapper row (sibling
+  of <code>ChangeContent</code>), so it is read from the outer document, not the embedded one:
+</p>
+<pre>
+$sortOrderCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='SortOrder']")
+$sortOrderNum = [long]::MaxValue   <span class="cmt"># default: sink to end</span>
+[long]::TryParse((Get-ColumnValue $sortOrderCol), [ref]$sortOrderNum) | Out-Null
+
+<span class="cmt"># After all objects parsed, sort ascending; MaxValue objects go last</span>
+$sorted = $DbObjects | Sort-Object { $_.SortOrder }</pre>
+</section>
+
+<!-- ═══════════════ 6. PROCESS PARSER ════════════════════════════════════ -->
+<section id="process-parser">
+<h2 class="st">6 · Process_XmlParser.psm1 — Path 1 &amp; Path 2</h2>
+
+<p>
+  This parser deals with <code>QBMTaggedChange</code> rows that reference a <code>JobChain</code>
+  (OIM process). Two locations can carry the <code>UID_JobChain</code>:
+</p>
+<table>
+  <tr><th>Path</th><th>Where UID_JobChain is found</th><th>Typical change type</th></tr>
+  <tr>
+    <td><strong>Path 1</strong></td>
+    <td><code>ObjectKey</code> column decoded → <code>&lt;T&gt;JobChain&lt;/T&gt;&lt;P&gt;UID…&lt;/P&gt;</code></td>
+    <td>Direct JobChain change (parameters, steps)</td>
+  </tr>
+  <tr>
+    <td><strong>Path 2</strong></td>
+    <td><code>ChangeContent</code> decoded → <code>&lt;Op Columnname="UID_JobChain"&gt;…&lt;/Op&gt;</code></td>
+    <td>JobEventGen row that references a JobChain</td>
+  </tr>
+</table>
+
+<pre>
+<span class="cmt"># Path 1 — ObjectKey approach</span>
+$okRaw = Get-ColumnValue ($dbo.SelectSingleNode("./*[local-name()='Column' and @Name='ObjectKey']"))
+$okDecoded = HtmlDecode x3 $okRaw
+$mOk = [regex]::Match($okDecoded, '&lt;T&gt;\s*(?&lt;t&gt;[^&lt;]+)\s*&lt;/T&gt;.*?&lt;P&gt;\s*(?&lt;p&gt;[^&lt;]+)\s*&lt;/P&gt;')
+if ($mOk.Success -and $mOk.Groups["t"] -match 'JobChain') {
+  $objUid = $mOk.Groups["p"].Value.Trim()
+
+  <span class="cmt"># Get transport XDateUpdated by decoding ChangeContent</span>
+  $ccNode = $dbo.SelectSingleNode(".//*[local-name()='Column' and @Name='ChangeContent']")
+  $decodedCC = HtmlDecode x3 (Get-ColumnValue $ccNode)
+  $transportDate = Get-XDateUpdatedFromBlock -Block $decodedCC
+
+  <span class="cmt"># Query DB (no XDateUpdated in SELECT — Confirm-ExportIfStale queries it internally)</span>
+  $pr = Find-QSql "select Name, UID_DialogTable from JobChain where UID_JobChain = '$objUid'" -dict
+  $allow = Confirm-ExportIfStale -TableName 'JobChain' -WhereClause "UID_JobChain = '$objUid'" `
+             -TransportXDateUpdated $transportDate -ObjectDescription "…"
+}
+
+<span class="cmt"># Path 2 — ChangeContent Diff fallback (only reached if Path 1 did not match)</span>
+if (-not $found) {
+  $decoded = HtmlDecode x3 (Get-ColumnValue $ccNode)
+  $m = $reUidJobChain.Match($decoded)   <span class="cmt"># regex: Op Columnname="UID_JobChain"</span>
+  $uid = $m.Groups["uid"].Value.Trim()
+  $transportDate = Get-XDateUpdatedFromBlock -Block $decoded  <span class="cmt"># $decoded already available</span>
+  $allow = Confirm-ExportIfStale …
+}</pre>
+
+<p>
+  After both paths, results are deduplicated by <code>TableName:Name</code> key before
+  returning, since multiple QBMTaggedChange rows can reference the same JobChain.
+</p>
+</section>
+
+<!-- ═══════════════ 7. TEMPLATES PARSER ══════════════════════════════════ -->
+<section id="templates-parser">
+<h2 class="st">7 · Templates_XmlParser.psm1 — Three-pass Algorithm</h2>
+
+<p>
+  Templates are stored in <code>DialogColumn.Template</code>. The parser uses three
+  regex passes over the fully-decoded TagData text:
+</p>
+
+<div class="flow">Pass 1 — Build $overwriteMap
+  For each &lt;DbObject&gt; block:
+    Extract ObjectKey → tableName (DialogColumn type) + columnName (UID)
+    Search all &lt;Diff&gt; blocks in that DbObject
+    If any Diff has &lt;Op ColumnName="IsOverwritingTemplate"&gt;&lt;Value&gt;True&lt;/Value&gt; → mark in map
+  Result: $overwriteMap  { "TableName|ColumnName" → $true }
+
+Pass 2 — Extract template content
+  For each &lt;DbObject&gt; block:
+    Re-extract ObjectKey → $tableName, $columnName, $uidDialogColumn
+    ↳ XDateUpdated check (Get-XDateUpdatedFromBlock on $dboText)
+    For each &lt;Diff&gt; block:
+      Match: &lt;Op ColumnName="Template"&gt;…&lt;Value&gt;VB content&lt;/Value&gt;
+      Decode VB content (HtmlDecode once)
+      Look up IsOverwritingTemplate from $overwriteMap
+      Emit: { TableName, ColumnName, IsOverwritingTemplate, Content, FetchContentFromDb=$false }
+
+Pass 3 — Overwrite-only changes (no Template content in Diff)
+  For each &lt;DbObject&gt; block:
+    Re-extract ObjectKey
+    ↳ XDateUpdated check (Get-XDateUpdatedFromBlock on $dboText)
+    For each &lt;Diff&gt; block:
+      Skip if Diff already has a Template Op (handled by Pass 2)
+      If Diff has IsOverwritingTemplate Op → capture True/False value
+      Emit: { TableName, ColumnName, IsOverwritingTemplate, Content=$null, FetchContentFromDb=$true }
+      ↑ FetchContentFromDb=$true tells the exporter to fetch VB content from the live DB
+
+Final: deduplicate by TableName, ColumnName, IsOverwritingTemplate, Content | Sort-Object -Unique</div>
+
+<div class="note">
+  <strong>Why three passes?</strong>
+  Pass 1 must complete before Pass 2 so the IsOverwritingTemplate flag is known for every
+  object. A single pass would require look-ahead — structurally difficult with regex on a
+  flat text file.
+</div>
+</section>
+
+<!-- ═══════════════ 8. SCRIPT PARSERS ════════════════════════════════════ -->
+<section id="script-parsers">
+<h2 class="st">8 · Script Parsers — Scripts / FormatScripts / CanSee / CanEdit</h2>
+
+<p>
+  All four parsers share the same algorithm. They search the decoded text for DbObject
+  blocks that contain a specific <code>Columnname</code> attribute value in a <code>&lt;Op&gt;</code>
+  tag, then extract the UID from the <code>&lt;T&gt;…&lt;/T&gt;&lt;P&gt;…&lt;/P&gt;</code>
+  key structure within that block.
+</p>
+
+<table>
+  <tr><th>Parser</th><th>Columnname filter</th><th>TypeName (T value)</th><th>Table checked</th></tr>
+  <tr><td>Scripts</td><td>(none — searches TypeName directly)</td><td><code>DialogScript</code></td><td><code>DialogScript</code></td></tr>
+  <tr><td>FormatScripts</td><td><code>FormatScript</code></td><td><code>DialogColumn</code></td><td><code>DialogColumn</code></td></tr>
+  <tr><td>CanSeeScripts</td><td><code>CanSeeScript</code></td><td><code>DialogColumn</code></td><td><code>DialogColumn</code></td></tr>
+  <tr><td>CanEditScripts</td><td><code>CanEditScript</code></td><td><code>DialogColumn</code></td><td><code>DialogColumn</code></td></tr>
+</table>
+
+<pre>
+<span class="cmt"># Full text decoded 3× (handles double/triple entity-escaping)</span>
+$text = Get-Content -LiteralPath $ZipPath -Raw
+for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }
+
+$dbObjectPattern = '(?is)&lt;DbObject\b.*?&gt;.*?&lt;/DbObject&gt;'
+$pattern = '(?is)&lt;T&gt;\s*' + [regex]::Escape($TypeName) + '\s*&lt;/T&gt;\s*&lt;P&gt;\s*(?&lt;p&gt;[^&lt;\s]+)\s*&lt;/P&gt;'
+
+$seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+foreach ($dbMatch in [regex]::Matches($text, $dbObjectPattern)) {
+  $dbText = $dbMatch.Value                             <span class="cmt"># one DbObject block</span>
+
+  <span class="cmt"># FormatScripts/CanSee/CanEdit also filter by Columnname first:</span>
+  if ($dbText -notmatch 'Columnname\s*=\s*"FormatScript"') { continue }
+
+  foreach ($m in [regex]::Matches($dbText, $pattern)) {
+    $k = $m.Groups['p'].Value.Trim()                   <span class="cmt"># UID extracted from &lt;P&gt;</span>
+    if ($k -and $seen.Add($k)) {                       <span class="cmt"># deduplicate across blocks</span>
+      $transportDate = Get-XDateUpdatedFromBlock -Block $dbText   <span class="cmt"># per-block date</span>
+      $allow = Confirm-ExportIfStale -TableName 'DialogColumn' -WhereClause "UID_DialogColumn = '$k'" `
+                 -TransportXDateUpdated $transportDate -ObjectDescription "…"
+      if (-not $allow) { continue }
+      [void]$keys.Add($k)
+    }
+  }
+}</pre>
+
+<div class="tip">
+  <strong>Scripts parser difference:</strong>
+  The Scripts parser iterates DbObject blocks to provide per-block XDateUpdated context.
+  It does <em>not</em> filter by Columnname first — it relies solely on the
+  <code>&lt;T&gt;DialogScript&lt;/T&gt;</code> match inside the block.
+</div>
+</section>
+
+<!-- ═══════════════ 9. TABLESCRIPTS PARSER ═══════════════════════════════ -->
+<section id="tablescripts-parser">
+<h2 class="st">9 · TableScripts_XmlParser.psm1</h2>
+
+<p>
+  TableScripts are defined on <code>DialogTable</code> rows (not <code>DialogColumn</code>).
+  The parser extracts the <code>UID_DialogTable</code> from the ObjectKey and determines
+  which of the five script columns are present in the ChangeContent Diff:
+</p>
+
+<pre>
+$objectKeyPattern = '(?is)&lt;Column\b[^&gt;]*\bName\s*=\s*"ObjectKey"[^&gt;]*&gt;.*?' +
+                    '&lt;Key&gt;\s*&lt;T&gt;\s*DialogTable\s*&lt;/T&gt;\s*&lt;P&gt;\s*(?&lt;p&gt;[^&lt;\s]+)\s*&lt;/P&gt;'
+
+function Test-HasOpColumn($DbObjectBlock, $ColumnName) {
+  $pat = '(?is)&lt;Column\b[^&gt;]*\bName\s*=\s*"ChangeContent"[^&gt;]*&gt;.*?' +
+         '&lt;Op\b[^&gt;]*\bColumn(?:name|Name)\s*=\s*"' + $ColumnName + '"'
+  return [regex]::IsMatch($DbObjectBlock, $pat)
+}
+
+foreach ($dbo in [regex]::Matches($text, $dbObjectPattern)) {
+  $block = $dbo.Value
+  $uidDialogTable = ([regex]::Match($block, $objectKeyPattern)).Groups['p'].Value.Trim()
+
+  $onSaving    = Test-HasOpColumn $block 'OnSavingScript'
+  $onSaved     = Test-HasOpColumn $block 'OnSavedScript'
+  $onLoaded    = Test-HasOpColumn $block 'OnLoadedScript'
+  $onDiscarded = Test-HasOpColumn $block 'OnDiscardedScript'
+  $onDiscarding= Test-HasOpColumn $block 'OnDiscardingScript'
+
+  if (-not ($onSaving -or $onSaved -or $onLoaded -or $onDiscarded -or $onDiscarding)) { continue }
+
+  <span class="cmt"># Composite handling: if same UID_DialogTable appears in multiple blocks, OR the flags</span>
+  if (-not $seen.Add($uidDialogTable)) {
+    $existing.OnSavingScript = $existing.OnSavingScript -or $onSaving
+    … continue
+  }
+
+  $transportDate = Get-XDateUpdatedFromBlock -Block $block
+  $allow = Confirm-ExportIfStale -TableName 'DialogTable' -WhereClause "UID_DialogTable = '$uidDialogTable'" …
+}</pre>
+</section>
+
+<!-- ═══════════════ 10. DBOBJECTS EXPORTERS ═══════════════════════════════ -->
+<section id="dbobjects-exporters">
+<h2 class="st">10 · DBObjects Exporters — Normal XML vs CSV Mode</h2>
+
+<h3>Normal mode — DBObjects_XmlExporter.psm1</h3>
+<p>
+  Produces one XML file containing all objects across all tables, in the OIM import format.
+  FK columns generate a nested element structure:
+</p>
+<pre>
+<span class="cmt">&lt;!-- Normal FK column: UID_Org on PersonInOrg --&gt;</span>
+&lt;UID_Org&gt;
+  &lt;Org&gt;
+    &lt;UID_Org&gt;abc-123&lt;/UID_Org&gt;
+  &lt;/Org&gt;
+&lt;/UID_Org&gt;
+
+<span class="cmt">&lt;!-- Normal plain column --&gt;</span>
+&lt;FirstName&gt;John&lt;/FirstName&gt;</pre>
+
+<h3>CSV mode — DBObjects_CsvExporter.psm1</h3>
+<p>
+  Two files per table. The algorithm builds three data structures before writing:
+</p>
+<div class="flow">
+Step A — Build $keyMap:           TableName → PkName  (first PK seen per table)
+Step B — Build $columnsByTable:   TableName → ordered dict { ColumnName → metadata }
+           - Columns added in parse order (first object seen sets the column order)
+           - FK metadata updated if a later object has richer info for the same column
+           - PkName parts safety-added even if absent from Columns
+Step C — Build $objectsByTable:   TableName → list of parsed objects
+
+Step D — For each table:
+  $displayName = $tableNameMap[$tableName] ?? $tableName   (from TableNameMapCSV)
+  Write Template_${displayName}.xml  (schema with @placeholder@ values)
+  Write 001-${tableName}.csv         (always original table name)
+</div>
+
+<h4>Schema XML structure</h4>
+<pre>
+&lt;Objects&gt;
+  &lt;Keys&gt;
+    &lt;TableName&gt;UID_Person&lt;/TableName&gt;   <span class="cmt">&lt;!-- one element per PK part --&gt;</span>
+  &lt;/Keys&gt;
+  &lt;TableName&gt;
+    &lt;UID_Person&gt;@UID_Person@&lt;/UID_Person&gt;     <span class="cmt">&lt;!-- plain column placeholder --&gt;</span>
+    &lt;UID_Org&gt;                                   <span class="cmt">&lt;!-- FK column --&gt;</span>
+      &lt;Org&gt;
+        &lt;UID_Org&gt;@UID_Org@&lt;/UID_Org&gt;          <span class="cmt">&lt;!-- nested FK placeholder --&gt;</span>
+      &lt;/Org&gt;
+    &lt;/UID_Org&gt;
+  &lt;/TableName&gt;
+&lt;/Objects&gt;</pre>
+
+<h4>CSV row construction</h4>
+<pre>
+<span class="cmt"># Column order determined by schema (first object seen)</span>
+$columnOrder = @($columnsByTable[$tableName].Keys)
+
+<span class="cmt"># PK values come from $pkValueMap (authoritative from Key/Table)</span>
+<span class="cmt"># NOT from obj.Columns — permissions may have filtered PK columns out</span>
+if ($pkValueMap.ContainsKey($colName)) {
+  $value = $pkValueMap[$colName]
+} else {
+  $col = $obj.Columns | Where-Object { $_.Name -eq $colName } | Select-Object -First 1
+  $value = $col.Value
+}
+
+<span class="cmt"># CSV escaping: wrap in quotes if value contains , " \r \n</span>
+ConvertTo-CsvValue -Value $value</pre>
+</section>
+
+<!-- ═══════════════ 11. DATA STRUCTURES ══════════════════════════════════ -->
+<section id="data-structures">
+<h2 class="st">11 · Data Structures Reference</h2>
+
+<h3>DbObject (produced by DBObjects_XmlParser)</h3>
+<div class="obj-box">
+  <div class="obj-title">DbObject</div>
+  <table>
+    <tr class="pk"><td>TableName</td><td>string — e.g. "Person"</td></tr>
+    <tr class="pk"><td>PkName</td>   <td>string[] — e.g. ["UID_Person"]</td></tr>
+    <tr class="pk"><td>PkValue</td>  <td>string[] — e.g. ["abc-123"]</td></tr>
+    <tr><td>SortOrder</td>           <td>long — from QBMTaggedChange wrapper</td></tr>
+    <tr><td>Columns</td>             <td>List&lt;Column&gt; — see below</td></tr>
+  </table>
+</div>
+
+<div class="obj-box">
+  <div class="obj-title">Column (normal)</div>
+  <table>
+    <tr><td>Name</td>         <td>string</td></tr>
+    <tr><td>Value</td>        <td>string</td></tr>
+    <tr><td>IsForeignKey</td> <td>$false</td></tr>
+    <tr class="pk"><td>IsPrimaryKey</td><td>bool</td></tr>
+  </table>
+</div>
+
+<div class="obj-box">
+  <div class="obj-title">Column (FK)</div>
+  <table>
+    <tr><td>Name</td>         <td>string</td></tr>
+    <tr><td>Value</td>        <td>string (FK value)</td></tr>
+    <tr class="fk"><td>IsForeignKey</td> <td>$true</td></tr>
+    <tr class="fk"><td>FkTableName</td>  <td>string — e.g. "Org"</td></tr>
+    <tr class="fk"><td>FkColumnName</td> <td>string — e.g. "UID_Org"</td></tr>
+    <tr class="pk"><td>IsPrimaryKey</td> <td>bool (can be both PK and FK)</td></tr>
+  </table>
+</div>
+
+<div class="obj-box">
+  <div class="obj-title">Column (Diff Op)</div>
+  <table>
+    <tr><td>Name</td>      <td>string</td></tr>
+    <tr><td>Value</td>     <td>string (new value)</td></tr>
+    <tr><td>OldValue</td>  <td>string (old value)</td></tr>
+    <tr><td>IsDiffOp</td>  <td>$true</td></tr>
+    <tr><td>IsForeignKey</td><td>$false</td></tr>
+    <tr><td>IsPrimaryKey</td><td>$false</td></tr>
+  </table>
+</div>
+
+<br>
+<h3>Template (produced by Templates_XmlParser)</h3>
+<div class="obj-box">
+  <div class="obj-title">Template</div>
+  <table>
+    <tr><td>TableName</td>             <td>string (sanitised)</td></tr>
+    <tr><td>ColumnName</td>            <td>string (UID_DialogColumn, sanitised)</td></tr>
+    <tr><td>IsOverwritingTemplate</td> <td>bool</td></tr>
+    <tr><td>Content</td>               <td>string or $null</td></tr>
+    <tr><td>FetchContentFromDb</td>    <td>bool — $true for overwrite-only changes</td></tr>
+  </table>
+</div>
+
+<div class="obj-box">
+  <div class="obj-title">TableScript</div>
+  <table>
+    <tr class="pk"><td>UID_DialogTable</td>    <td>string</td></tr>
+    <tr><td>OnSavingScript</td>    <td>bool</td></tr>
+    <tr><td>OnSavedScript</td>     <td>bool</td></tr>
+    <tr><td>OnLoadedScript</td>    <td>bool</td></tr>
+    <tr><td>OnDiscardedScript</td> <td>bool</td></tr>
+    <tr><td>OnDiscardingScript</td><td>bool</td></tr>
+  </table>
+</div>
+
+<div class="obj-box">
+  <div class="obj-title">ExtractedFile (from ZIP)</div>
+  <table>
+    <tr><td>TempDir</td>     <td>string — temp extraction path</td></tr>
+    <tr><td>XmlFilePath</td> <td>string — full TagData.xml path</td></tr>
+    <tr><td>ChildDir</td>    <td>string — subfolder name</td></tr>
+    <tr><td>TranspName</td>  <td>string — ZIP filename without extension</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ═══════════════ 12. SQL ACCESS PATTERN ═══════════════════════════════ -->
+<section id="sql-pattern">
+<h2 class="st">12 · SQL Access Pattern</h2>
+
+<p>
+  OIM's PowerShell module exposes a simple three-function API for database queries.
+  The connection is an implicit global managed by the DM module — the return value of
+  <code>Open-QSql</code> is discarded in most callers:
+</p>
+
+<pre>
+$s      = Open-QSql                              <span class="cmt"># open / return existing connection</span>
+$wc     = "SELECT Name FROM JobChain WHERE UID_JobChain = '$uid'"
+$result = Find-QSql $wc -dict                    <span class="cmt"># -dict returns hashtable { ColumnName → Value }</span>
+Close-QSql                                       <span class="cmt"># release / decrement ref count</span>
+
+<span class="cmt"># Multi-row example (Find-QSql returns array of dicts)</span>
+$rows = Find-QSql "SELECT ColumnName FROM DialogColumn WHERE …" -dict
+foreach ($row in $rows) { $row["ColumnName"] }</pre>
+
+<div class="warn">
+  <strong>Important — connection is global:</strong>
+  <code>Open-QSql</code> / <code>Close-QSql</code> calls are not nested safely.
+  Always pair them. In <code>Confirm-ExportIfStale</code> the query is wrapped in a
+  <code>try/catch</code> that returns <code>$true</code> on any error, ensuring a failed
+  DB call never silently skips an object.
+</div>
+
+<p>
+  <code>Find-QSql</code> with <code>-dict</code> returns <code>$null</code> when no rows
+  are found. Callers check:
+</p>
+<pre>
+if (-not $result -or -not $result.ContainsKey("XDateUpdated")) { return $true }</pre>
+</section>
+
+<!-- ═══════════════ 13. GLOBAL STATE LIFECYCLE ═══════════════════════════ -->
+<section id="global-lifecycle">
+<h2 class="st">13 · Global State Lifecycle</h2>
+
+<table>
+  <tr><th>Event</th><th>XDateCheck_ReportOnDenial</th><th>XDateCheck_StaleAbortTriggered</th></tr>
+  <tr>
+    <td>XDateCheck.psm1 imported (first time)</td>
+    <td>Set to <code>$true</code> (null-guard default)</td>
+    <td>Set to <code>$false</code> (null-guard default)</td>
+  </tr>
+  <tr>
+    <td>XDateCheck.psm1 reimported with <code>-Force</code></td>
+    <td><strong>Preserved</strong> (null-guard: already non-null)</td>
+    <td><strong>Preserved</strong></td>
+  </tr>
+  <tr>
+    <td>After <code>InputValidator</code> returns in MainPsModule</td>
+    <td>Set from <code>$config.ReportOnDenial</code></td>
+    <td>Set to <code>$false</code></td>
+  </tr>
+  <tr>
+    <td>Start of each XML file (foreach loop)</td>
+    <td>Unchanged</td>
+    <td>Reset to <code>$false</code></td>
+  </tr>
+  <tr>
+    <td>User clicks Abort in popup + ReportOnDenial=true</td>
+    <td>Unchanged</td>
+    <td>Set to <code>$true</code></td>
+  </tr>
+  <tr>
+    <td>All subsequent Confirm-ExportIfStale calls (same file)</td>
+    <td>Unchanged</td>
+    <td>Read as <code>$true</code> → early return <code>$true</code>, no popup</td>
+  </tr>
+  <tr>
+    <td>Main_PsModule checks after parsing</td>
+    <td>Not read</td>
+    <td>Read: if <code>$true</code> → print report, return (no file write)</td>
+  </tr>
+</table>
+</section>
+
+<!-- ═══════════════ 14. REPORT MODE FULL FLOW ════════════════════════════ -->
+<section id="report-mode-flow">
+<h2 class="st">14 · Report Mode — Full Flow</h2>
+
+<p>
+  The sequence below shows what happens from the moment Abort is clicked through to the
+  console output, for a transport containing three tables:
+</p>
+
+<div class="flow">
+User clicks [Abort] on Object #2 of 10 in table "Person"
+│
+├─ Confirm-ExportIfStale sets $global:XDateCheck_StaleAbortTriggered = $true
+├─ Confirm-ExportIfStale returns $true  (object IS added to list)
+│
+├─ Objects #3–10 (Person): Confirm-ExportIfStale called
+│    → sees StaleAbortTriggered=$true → immediately returns $true (no DB query, no popup)
+│    → all 10 objects collected
+│
+├─ Scripts parser called next:
+│    → Confirm-ExportIfStale → $true (no popup) → all script UIDs collected
+│
+├─ All 8 parsers finish normally, all objects collected
+│
+├─ DBObjects_Main_PsModule checks:
+│    if ($global:XDateCheck_StaleAbortTriggered) {
+│      Write-Host "[REPORT MODE] No files will be written."
+│      foreach table → print table name + count
+│        foreach object → print PK values
+│      return   ← exits WITHOUT writing any XML/CSV
+│    }
+│
+├─ Process_Main_PsModule checks same flag → prints processes → return
+├─ Scripts_Main_PsModule   → prints script UIDs → return
+├─ Templates_Main_PsModule → prints TableName.ColumnName → return
+├─ TableScripts_Main_PsModule → prints UID_DialogTable → return
+├─ FormatScripts_Main_PsModule → prints UIDs → return
+├─ CanSeeScripts_Main_PsModule → prints UIDs → return
+├─ CanEditScripts_Main_PsModule → prints UIDs → return
+│
+└─ Next XML file in ZIP:
+   $global:XDateCheck_StaleAbortTriggered = $false  ← reset
+   Processing resumes normally for next file
+</div>
+
+<div class="key">
+  <strong>Key insight — why objects are still collected after Abort:</strong>
+  Once the abort flag is set, <code>Confirm-ExportIfStale</code> returns <code>$true</code>
+  for every subsequent call without showing any popup and without making a DB query.
+  This means all remaining objects are added to the parser's result list — providing a
+  complete inventory for the report — even though no files will be written.
+</div>
+
+<h3>ReportOnDenial = false (alternative behaviour)</h3>
+<p>
+  When <code>ReportOnDenial</code> is <code>false</code>, clicking Abort does NOT set the
+  global flag. <code>Confirm-ExportIfStale</code> returns <code>$false</code> for the
+  specific object only. The parser <code>continue</code>s to the next object. All other
+  objects (including future stale ones) still show their own popup individually. Files are
+  written normally at the end.
+</p>
+</section>
+
+<hr style="margin-top:56px; border:none; border-top:1px solid #ccc;">
+<p style="text-align:center; font-size:9pt; color:#aaa; margin-top:14px;">
+  OIM Export Tool · Code Explanation · v2.0 · February 2026 · Internal use only
+</p>
+
+</body>
+</html>

@@ -68,69 +68,55 @@ Import-Module (Join-Path $scriptDir "FormatScripts_Exporter_PsModule.psm1") -For
 #region Main Execution
 try {
   $Logger = Get-Logger
-  $Logger.info("OIM Format Scripts Export Tool")
-  Write-Host "OIM Format Scripts Export Tool" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger.Info("OIM Format Scripts Export Tool")
 
   # Step 1: Parse input XML
-  Write-Host "[1/3] Parsing input XML: $ZipPath"
-  $Logger.info("Parsing input XML: $ZipPath")
+  $Logger.Info("Parsing input XML: $ZipPath")
   $scripts = Get-FormatScriptKeysFromChangeLabel -ZipPath $ZipPath
 
-  Write-Host "Found $($scripts.Count) Format script(s)" -ForegroundColor Cyan
-  $Logger.info("Found $($scripts.Count) Format script(s)")
+  Write-Host "  Found $($scripts.Count) FormatScript(s)" -ForegroundColor Cyan
+  $Logger.Info("Found $($scripts.Count) FormatScript(s)")
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
   if ($global:XDateCheck_StaleAbortTriggered) {
     Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
-    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
     foreach ($k in $scripts) { Write-Host "    - $k" -ForegroundColor Gray }
     return
   }
 
   if ($scripts.Count -gt 0) {
-
-    # Step 2: Login (kept for parity / future use)
-    Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-    $Logger = Get-Logger
-    $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
+    # Step 2: Login to API
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
     $Logger = Get-Logger
-    $Logger.info("Authentication successful")
-    Write-Host "Authentication successful"
-    Write-Host ""
+    $Logger.Info("Authentication successful")
 
-    # Step 3: Export formatted scripts
-    Write-Host "[3/3] Exporting formatted scripts to: $OutPath"
-    $Logger.info("Exporting formatted scripts to: $OutPath")
+    # Step 3: Export Format Scripts
     $outDirScripts = Join-Path -Path $OutPath -ChildPath "FormatScripts"
+    Write-Host "  Exporting to: $outDirScripts" -ForegroundColor Gray
+    $Logger.Info("Exporting to: $outDirScripts")
     Write-FormatScriptsAsVbNetFiles -Scripts $scripts -OutDir $outDirScripts
-
-    Write-Host ""
-    Write-Host "Export completed successfully!" -ForegroundColor Green
-    $Logger.info("Export completed successfully!")
+    $Logger.Info("Export completed successfully!")
   }
   else {
     $Logger = Get-Logger
-    $Logger.info("No scripts found in ChangeContent in: $ZipPath")
-    Write-Host "No scripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
+    Write-Host "  No FormatScripts found in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No FormatScripts found in: $ZipPath")
   }
 }
 catch {
   $Logger = Get-Logger
-  $Logger.info("ERROR: Export failed!")
-  Logger.info($_.Exception.Message)
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
-
+  $Logger.Info("ERROR: Export failed!")
+  $Logger.Info($_.Exception.Message)
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
     $Logger = Get-Logger
-    $Logger.info("Stack Trace:")
-    $Logger.info($_.ScriptStackTrace)
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    $Logger.Info("Stack Trace:")
+    $Logger.Info($_.ScriptStackTrace)
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }

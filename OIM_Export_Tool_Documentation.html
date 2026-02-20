@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OIM Export Tool – Technical Documentation</title>
+<style>
+  /* ── Base ─────────────────────────────────────────────────────────────── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 11pt;
+    color: #1a1a2e;
+    line-height: 1.65;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 32px 60px;
+  }
+
+  /* ── Cover ────────────────────────────────────────────────────────────── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 0;
+    border-bottom: 3px solid #16213e;
+    page-break-after: always;
+  }
+  .cover .logo-bar {
+    font-size: 9pt;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #0f3460;
+    margin-bottom: 40px;
+  }
+  .cover h1 {
+    font-size: 32pt;
+    font-weight: 700;
+    color: #0f3460;
+    margin-bottom: 10px;
+  }
+  .cover .subtitle {
+    font-size: 14pt;
+    color: #555;
+    margin-bottom: 50px;
+  }
+  .cover .meta-grid {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    gap: 6px 24px;
+    text-align: left;
+    font-size: 10pt;
+    background: #f0f4fa;
+    padding: 20px 32px;
+    border-radius: 8px;
+    margin: 0 auto;
+  }
+  .cover .meta-grid .label { font-weight: 600; color: #0f3460; }
+  .cover .notice {
+    margin-top: 40px;
+    font-size: 9pt;
+    color: #888;
+  }
+
+  /* ── TOC ──────────────────────────────────────────────────────────────── */
+  .toc { page-break-after: always; padding-top: 40px; }
+  .toc h2 { font-size: 18pt; color: #0f3460; border-bottom: 2px solid #0f3460; padding-bottom: 6px; margin-bottom: 20px; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc ol li { counter-increment: toc; padding: 4px 0; border-bottom: 1px dotted #ccc; }
+  .toc ol li::before { content: counter(toc) "."; font-weight: 700; color: #0f3460; margin-right: 10px; }
+  .toc ol li a { text-decoration: none; color: #1a1a2e; }
+  .toc ol li a:hover { color: #0f3460; }
+  .toc ol li.sub { padding-left: 28px; font-size: 10pt; color: #555; }
+  .toc ol li.sub::before { content: ""; }
+
+  /* ── Sections ─────────────────────────────────────────────────────────── */
+  section { page-break-inside: avoid; margin-top: 44px; }
+  section:first-of-type { margin-top: 40px; }
+
+  h2.section-title {
+    font-size: 16pt;
+    color: #0f3460;
+    border-left: 5px solid #0f3460;
+    padding-left: 12px;
+    margin-bottom: 18px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 12pt;
+    color: #16213e;
+    margin: 22px 0 10px;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 11pt;
+    color: #0f3460;
+    margin: 16px 0 8px;
+  }
+  p { margin-bottom: 10px; }
+
+  /* ── Callout boxes ────────────────────────────────────────────────────── */
+  .note, .warning, .tip, .important {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+  .note    { background: #e8f4fd; border-left: 4px solid #2196f3; }
+  .warning { background: #fff8e1; border-left: 4px solid #ff9800; }
+  .tip     { background: #e8f5e9; border-left: 4px solid #4caf50; }
+  .important { background: #fce4ec; border-left: 4px solid #e91e63; }
+  .note strong, .warning strong, .tip strong, .important strong { display: block; margin-bottom: 4px; }
+
+  /* ── Code ─────────────────────────────────────────────────────────────── */
+  pre, code {
+    font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+    font-size: 9.5pt;
+  }
+  code { background: #f4f6fa; padding: 1px 5px; border-radius: 3px; }
+  pre {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 14px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  pre .kw  { color: #79b8ff; }
+  pre .str { color: #9ecbff; }
+  pre .cmt { color: #6a737d; font-style: italic; }
+  pre .val { color: #f97583; }
+  pre .fn  { color: #b392f0; }
+
+  /* ── Tables ───────────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
+  th { background: #0f3460; color: #fff; text-align: left; padding: 8px 10px; font-weight: 600; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e0e5ef; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f9fd; }
+  td code { font-size: 9pt; }
+
+  /* ── Flow diagram (text-based) ────────────────────────────────────────── */
+  .flow {
+    background: #f4f6fa;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 9pt;
+    line-height: 1.8;
+    white-space: pre;
+    margin: 14px 0;
+  }
+
+  /* ── Directory tree ───────────────────────────────────────────────────── */
+  .tree {
+    background: #f4f6fa;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    padding: 14px 20px;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 9pt;
+    line-height: 1.7;
+    margin: 14px 0;
+  }
+
+  /* ── Print ────────────────────────────────────────────────────────────── */
+  @media print {
+    body { max-width: 100%; padding: 0 0 0 0; }
+    .cover { page-break-after: always; }
+    .toc   { page-break-after: always; }
+    section { page-break-inside: auto; }
+    h2.section-title { page-break-after: avoid; }
+    h3, h4 { page-break-after: avoid; }
+    pre { white-space: pre-wrap; }
+    a { color: inherit; text-decoration: none; }
+    @page { margin: 18mm 16mm; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ COVER ══════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-bar">One Identity Manager · Internal Tools</div>
+  <h1>OIM Export Tool</h1>
+  <div class="subtitle">Technical Reference Manual</div>
+  <div class="meta-grid">
+    <span class="label">Version</span>      <span>2.0</span>
+    <span class="label">Date</span>         <span>February 2026</span>
+    <span class="label">Audience</span>     <span>Technical / Development</span>
+    <span class="label">Repository</span>   <span>DM_test</span>
+    <span class="label">Entry point</span>  <span>Source Code\MainPsModule.ps1</span>
+  </div>
+  <div class="notice">
+    To convert this file to PDF: open in any browser → File → Print → Save as PDF
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ TOC ════════════════════════════════════ -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#prerequisites">Prerequisites &amp; Environment</a></li>
+    <li><a href="#structure">Project Structure</a></li>
+    <li><a href="#configuration">Configuration (config.json)</a></li>
+    <li class="sub">4.1 All configuration keys</li>
+    <li><a href="#running">Running the Tool</a></li>
+    <li class="sub">5.1 Command-line parameters</li>
+    <li class="sub">5.2 Password handling</li>
+    <li><a href="#architecture">Module Architecture</a></li>
+    <li class="sub">6.1 Orchestration flow</li>
+    <li class="sub">6.2 Module descriptions</li>
+    <li><a href="#xdate">XDateUpdated Freshness Check</a></li>
+    <li class="sub">7.1 How it works</li>
+    <li class="sub">7.2 Popup dialog</li>
+    <li class="sub">7.3 Report mode</li>
+    <li><a href="#csvmode">CSV Mode &amp; TableNameMapCSV</a></li>
+    <li><a href="#output">Output Structure</a></li>
+    <li><a href="#logging">Logging</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════ 1. OVERVIEW ════════════════════════════════════ -->
+<section id="overview">
+  <h2 class="section-title">1 · Overview</h2>
+
+  <p>
+    The <strong>OIM Export Tool</strong> is a PowerShell-based automation utility that extracts
+    customisation artefacts (scripts, templates, processes, database objects, and more) from
+    One Identity Manager (OIM) <em>transport packages</em> (ZIP files containing tagged-change
+    XML) and writes them as version-controllable files to an output directory.
+  </p>
+
+  <p>
+    The tool is designed to run as part of a CI/CD or manual release process. A single
+    invocation processes every XML file found inside the provided transport ZIP and produces
+    structured output that can be committed to source control.
+  </p>
+
+  <h3>What the tool extracts</h3>
+  <table>
+    <tr><th>Artefact type</th><th>Source in OIM</th><th>Output format</th></tr>
+    <tr><td>DB Objects</td><td>ChangeContent embedded DbObject XML</td><td>XML per table or CSV + schema XML (CSV mode)</td></tr>
+    <tr><td>Processes (JobChain)</td><td>QBMTaggedChange ObjectKey / ChangeContent</td><td>XML per process</td></tr>
+    <tr><td>VB.NET Templates</td><td>DialogColumn Template column</td><td><code>.vb</code> per column</td></tr>
+    <tr><td>Dialog Scripts</td><td>DialogScript UID references</td><td><code>.vb</code> per script</td></tr>
+    <tr><td>Table Scripts</td><td>DialogTable On* script columns</td><td><code>.vb</code> per script per table</td></tr>
+    <tr><td>Format Scripts</td><td>DialogColumn FormatScript</td><td><code>.vb</code> per column</td></tr>
+    <tr><td>CanSee Scripts</td><td>DialogColumn CanSeeScript</td><td><code>.vb</code> per column</td></tr>
+    <tr><td>CanEdit Scripts</td><td>DialogColumn CanEditScript</td><td><code>.vb</code> per column</td></tr>
+  </table>
+</section>
+
+<!-- ═══════════════════ 2. PREREQUISITES ═══════════════════════════════════ -->
+<section id="prerequisites">
+  <h2 class="section-title">2 · Prerequisites &amp; Environment</h2>
+
+  <table>
+    <tr><th>Requirement</th><th>Detail</th></tr>
+    <tr><td>PowerShell</td><td>5.1 or PowerShell 7+</td></tr>
+    <tr><td>.NET Framework / .NET</td><td>4.7.2+ (System.Windows.Forms required for popup dialogs)</td></tr>
+    <tr><td>OIM Deployment Manager DLL</td><td><code>Intragen.Deployment.OneIdentity.dll</code> — provided with DM package</td></tr>
+    <tr><td>OIM Config Directory</td><td>Folder containing <code>database.config</code> (connection string to OIM DB)</td></tr>
+    <tr><td>Network access</td><td>Must be able to reach the OIM SQL database at runtime</td></tr>
+    <tr><td>Transport ZIP</td><td>Tagged-change export ZIP from OIM Designer / Transport Manager</td></tr>
+  </table>
+
+  <div class="warning">
+    <strong>Important:</strong>
+    The tool makes live database queries during export (for column permissions, FK metadata,
+    and freshness checks). Ensure SQL connectivity is available before running.
+  </div>
+</section>
+
+<!-- ══════════════════ 3. PROJECT STRUCTURE ════════════════════════════════ -->
+<section id="structure">
+  <h2 class="section-title">3 · Project Structure</h2>
+
+<div class="tree">Source Code\
+├── MainPsModule.ps1            ← Entry point / orchestrator
+├── InputValidator.psm1         ← Config loading &amp; CLI parameter merge
+├── NLogger.psm1                ← NLog wrapper (Get-Logger)
+├── config.json                 ← All runtime settings
+│
+└── Modules\
+    ├── Common\
+    │   ├── XDateCheck.psm1     ← Freshness check, WinForms popup, report mode
+    │   ├── ExtractXMLFromZip.psm1
+    │   ├── PsModuleLogin.psm1
+    │   └── ...
+    │
+    ├── DBObjects\
+    │   ├── DBObjects_Main_PsModule.psm1
+    │   ├── DBObjects_XmlParser.psm1
+    │   ├── DBObjects_XmlExporter.psm1
+    │   ├── DBObjects_CsvExporter.psm1
+    │   └── DBObjects_FilterColumnsPsModule.psm1
+    │
+    ├── Process\
+    │   ├── Process_Main_PsModule.psm1
+    │   ├── Process_XmlParser.psm1
+    │   └── Export-Process.psm1
+    │
+    ├── Templates\
+    │   ├── Templates_Main_PsModule.psm1
+    │   ├── Templates_XmlParser.psm1
+    │   └── Templates_Exporter_PsModule.psm1
+    │
+    ├── Scripts\
+    ├── TableScripts\
+    ├── FormatScripts\
+    ├── CanSeeScripts\
+    └── CanEditScripts\         ← Same structure: Main + Parser + Exporter
+</div>
+</section>
+
+<!-- ══════════════════ 4. CONFIGURATION ════════════════════════════════════ -->
+<section id="configuration">
+  <h2 class="section-title">4 · Configuration (config.json)</h2>
+
+  <p>
+    All persistent settings live in <code>Source Code\config.json</code>.
+    Command-line parameters always take precedence over config-file values.
+  </p>
+
+<pre>{
+  "DMConfigDir"      : "C:\\Intragen\\Deployment\\Config\\Example",
+  "OutPath"          : "C:\\Output",
+  "LogPath"          : "C:\\Logs\\export.log",
+  "NLoggerDLL"       : "C:\\...\\NLog.dll",
+  "DMDll"            : "C:\\...\\Intragen.Deployment.OneIdentity.dll",
+  "DMPassword"       : "plain-text-or-[E]encrypted",
+  "IncludeEmptyValues": false,
+  "PreviewXml"       : false,
+  "CSVMode"          : false,
+  "ExcludedColumnsCSV": "C:\\...\\Excluded.csv",
+  "TableNameMapCSV"  : "C:\\...\\TableNameMap.csv",
+  "ReportOnDenial"   : true
+}</pre>
+
+  <h3>Key reference</h3>
+  <table>
+    <tr><th>Key</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr>
+      <td><code>DMConfigDir</code></td><td>string</td><td>Yes</td>
+      <td>Path to the OIM Deployment Manager configuration directory (contains <code>database.config</code>).</td>
+    </tr>
+    <tr>
+      <td><code>OutPath</code></td><td>string</td><td>Yes</td>
+      <td>Root output directory. Created automatically if it does not exist.</td>
+    </tr>
+    <tr>
+      <td><code>LogPath</code></td><td>string</td><td>No</td>
+      <td>Full path to the log file. Defaults to <code>&lt;OutPath&gt;\Logs\export.log</code>.</td>
+    </tr>
+    <tr>
+      <td><code>NLoggerDLL</code></td><td>string</td><td>Yes</td>
+      <td>Path to <code>NLog.dll</code>. Required for structured logging.</td>
+    </tr>
+    <tr>
+      <td><code>DMDll</code></td><td>string</td><td>Yes</td>
+      <td>Path to <code>Intragen.Deployment.OneIdentity.dll</code>.</td>
+    </tr>
+    <tr>
+      <td><code>DMPassword</code></td><td>string</td><td>No</td>
+      <td>
+        Database/DM password. Can be plain text or prefixed with <code>[E]</code> for
+        encrypted form. Can also be provided interactively via the <code>-DMPassword</code>
+        switch (see §5.2).
+      </td>
+    </tr>
+    <tr>
+      <td><code>IncludeEmptyValues</code></td><td>bool</td><td>No</td>
+      <td>When <code>true</code>, columns with empty values are included in output XML. Default: <code>false</code>.</td>
+    </tr>
+    <tr>
+      <td><code>PreviewXml</code></td><td>bool</td><td>No</td>
+      <td>When <code>true</code>, the generated XML is also printed to the console. Default: <code>false</code>.</td>
+    </tr>
+    <tr>
+      <td><code>CSVMode</code></td><td>bool</td><td>No</td>
+      <td>Switches DB-Objects output to CSV mode (schema XML + CSV per table). See §8.</td>
+    </tr>
+    <tr>
+      <td><code>ExcludedColumnsCSV</code></td><td>string</td><td>No</td>
+      <td>Path to a CSV file listing columns to exclude from DB-Object exports.</td>
+    </tr>
+    <tr>
+      <td><code>TableNameMapCSV</code></td><td>string</td><td>No</td>
+      <td>
+        Path to a two-column CSV (<code>TableName,TemplateName</code>) that renames the
+        schema-XML file in CSV mode. See §8.
+      </td>
+    </tr>
+    <tr>
+      <td><code>ReportOnDenial</code></td><td>bool</td><td>No</td>
+      <td>
+        When <code>true</code> (default), clicking <strong>Abort</strong> in the stale-object
+        popup activates report mode: all objects are collected but no files are written.
+        When <code>false</code>, the individual object is simply skipped.
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ══════════════════ 5. RUNNING THE TOOL ════════════════════════════════ -->
+<section id="running">
+  <h2 class="section-title">5 · Running the Tool</h2>
+
+  <h3>5.1 Command-line parameters</h3>
+  <p>Run the entry-point script from any PowerShell session:</p>
+
+<pre><span class="kw">.\MainPsModule.ps1</span> `
+    -ZipPath    <span class="str">"C:\Transports\export.zip"</span> `
+    -DMConfigDir <span class="str">"C:\OIM\Config"</span>           `   <span class="cmt"># optional if in config.json</span>
+    -OutPath    <span class="str">"C:\Output"</span>               `   <span class="cmt"># optional if in config.json</span>
+    -DMDll      <span class="str">"C:\DM\Intragen.Deployment.OneIdentity.dll"</span> `
+    [-LogPath   <span class="str">"C:\Logs\run.log"</span>]       `
+    [-DMPassword]                              `   <span class="cmt"># triggers password prompt</span>
+    [-IncludeEmptyValues]                      `
+    [-PreviewXml]                              `
+    [-CSVMode]</pre>
+
+  <table>
+    <tr><th>Parameter</th><th>Mandatory</th><th>Description</th></tr>
+    <tr><td><code>-ZipPath</code></td><td>Yes</td><td>Path to the OIM transport ZIP file.</td></tr>
+    <tr><td><code>-DMConfigDir</code></td><td>If not in config</td><td>OIM DM configuration directory.</td></tr>
+    <tr><td><code>-OutPath</code></td><td>If not in config</td><td>Root output directory.</td></tr>
+    <tr><td><code>-DMDll</code></td><td>If not in config</td><td>Path to the DM DLL.</td></tr>
+    <tr><td><code>-LogPath</code></td><td>No</td><td>Log file path (defaults to <code>OutPath\Logs\export.log</code>).</td></tr>
+    <tr><td><code>-DMPassword</code></td><td>No</td><td>Switch that triggers an interactive password prompt (overrides config.json password).</td></tr>
+    <tr><td><code>-IncludeEmptyValues</code></td><td>No</td><td>Include columns with empty values in output.</td></tr>
+    <tr><td><code>-PreviewXml</code></td><td>No</td><td>Print generated XML to console.</td></tr>
+    <tr><td><code>-CSVMode</code></td><td>No</td><td>Activate CSV-mode output for DB Objects.</td></tr>
+  </table>
+
+  <h3>5.2 Password handling</h3>
+  <p>The tool supports three password sources, evaluated in this priority order:</p>
+  <ol style="margin-left:24px; margin-top:8px; margin-bottom:8px;">
+    <li><strong>Interactive prompt</strong> — pass the <code>-DMPassword</code> switch; a masked prompt appears.</li>
+    <li><strong>config.json plain text</strong> — set <code>"DMPassword": "mypassword"</code>.</li>
+    <li><strong>config.json encrypted</strong> — set <code>"DMPassword": "[E]&lt;encrypted-blob&gt;"</code>; decryption is handled by the DM module.</li>
+  </ol>
+  <div class="tip">
+    <strong>Recommendation:</strong> Use the <code>[E]</code>-encrypted form in config.json for automated runs so that credentials are not stored in plain text.
+  </div>
+</section>
+
+<!-- ══════════════════ 6. ARCHITECTURE ═════════════════════════════════════ -->
+<section id="architecture">
+  <h2 class="section-title">6 · Module Architecture</h2>
+
+  <h3>6.1 Orchestration flow</h3>
+<div class="flow">MainPsModule.ps1
+  │
+  ├─ [1] ExtractXMLFromZip  →  extract all TagData XML files from the ZIP
+  │
+  ├─ [2] InputValidator     →  merge CLI params + config.json → $config object
+  │                            initialise $global:XDateCheck_* globals
+  │
+  └─ [3] foreach XML file
+          │  reset abort flag per file
+          │
+          ├─ DBObjects_Main_PsModule
+          │    └─ DBObjects_XmlParser   → Confirm-ExportIfStale (per object)
+          │    └─ FK metadata + sorting
+          │    └─ Column permission filter
+          │    └─ DBObjects_XmlExporter / DBObjects_CsvExporter
+          │
+          ├─ Process_Main_PsModule
+          │    └─ Process_XmlParser    → Confirm-ExportIfStale (per JobChain)
+          │    └─ Export-Process
+          │
+          ├─ Templates_Main_PsModule
+          │    └─ Templates_XmlParser  → Confirm-ExportIfStale (per DialogColumn)
+          │    └─ Templates_Exporter
+          │
+          ├─ Scripts_Main_PsModule
+          │    └─ Scripts_XmlParser    → Confirm-ExportIfStale (per DialogScript)
+          │    └─ Scripts_Exporter
+          │
+          ├─ TableScripts_Main_PsModule
+          ├─ FormatScripts_Main_PsModule
+          ├─ CanSeeScripts_Main_PsModule
+          └─ CanEditScripts_Main_PsModule
+               └─ (same pattern as above)
+</div>
+
+  <h3>6.2 Module descriptions</h3>
+
+  <h4>Common\XDateCheck.psm1</h4>
+  <p>
+    Central module for freshness checking. Exports <code>Get-XDateUpdatedFromBlock</code>,
+    <code>Confirm-ExportIfStale</code>, <code>Show-StaleObjectDialog</code> (WinForms popup),
+    and global-state management helpers. All parsers import this module with <code>-Force</code>;
+    global variables are null-guarded to survive reimports.
+  </p>
+
+  <h4>Common\PsModuleLogin.psm1</h4>
+  <p>Wraps <code>Connect-OimPSModule</code> to authenticate against OIM using the DM DLL and return a session object used for permission and FK metadata discovery.</p>
+
+  <h4>DBObjects_XmlParser.psm1</h4>
+  <p>
+    Parses every <code>ChangeContent</code> column in the transport XML. Handles two payload
+    shapes: full-snapshot <code>&lt;DbObject&gt;</code> (Case 1) and diff <code>&lt;Diff&gt;</code>
+    (Case 2). Enriches objects with FK metadata and sorts them by <code>SortOrder</code>.
+  </p>
+
+  <h4>DBObjects_CsvExporter.psm1</h4>
+  <p>
+    Used only in CSV mode. Writes a <code>Template_&lt;TableName&gt;.xml</code> schema file (with
+    <code>@placeholder@</code> values) and a numbered <code>&lt;N&gt;-&lt;TableName&gt;.csv</code>
+    data file per table. Supports optional table-name remapping via <code>TableNameMapCSV</code>
+    (schema XML only — CSV filenames always use the real table name).
+  </p>
+
+  <h4>Process_XmlParser.psm1</h4>
+  <p>
+    Locates <code>QBMTaggedChange</code> rows whose ObjectKey or ChangeContent references a
+    <code>JobChain</code> UID. Queries the DB for the process name and associated table, then
+    calls <code>Confirm-ExportIfStale</code>.
+  </p>
+
+  <h4>Templates_XmlParser.psm1</h4>
+  <p>
+    Three-pass parser: (1) builds an <em>IsOverwritingTemplate</em> map, (2) extracts actual
+    VB template content per <code>DialogColumn</code>, (3) handles overwrite-only changes where
+    content must be fetched from the live DB.
+  </p>
+</section>
+
+<!-- ══════════════════ 7. XDATEUPDATED FRESHNESS CHECK ════════════════════ -->
+<section id="xdate">
+  <h2 class="section-title">7 · XDateUpdated Freshness Check</h2>
+
+  <h3>7.1 How it works</h3>
+  <p>
+    Every object in a transport carries the <code>XDateUpdated</code> timestamp from the moment
+    the transport was <em>created</em>. Between transport creation and export, a developer may
+    have modified the same object directly in the database — making the transport stale.
+  </p>
+  <p>
+    For each object encountered during parsing, the tool:
+  </p>
+  <ol style="margin-left:24px; margin-top:8px; margin-bottom:8px;">
+    <li>Extracts the object's <code>XDateUpdated</code> from the transport XML
+        (first tries <code>&lt;Op Columnname="XDateUpdated"&gt;</code> inside the Diff,
+        then falls back to <code>&lt;Column Name="XDateUpdated"&gt;</code>).</li>
+    <li>Queries the live database: <code>SELECT XDateUpdated FROM &lt;Table&gt; WHERE &lt;PK clause&gt;</code>.</li>
+    <li>If the DB value is <strong>newer</strong> than the transport value → the object is <em>stale</em> → popup is shown.</li>
+    <li>If the DB value equals or predates the transport value → object is considered fresh and exported normally.</li>
+    <li>If no transport date is found → check is skipped and the object is always exported.</li>
+  </ol>
+
+  <div class="note">
+    <strong>Note:</strong>
+    The check is performed per individual object, not per transport file. A single transport
+    can contain a mix of fresh and stale objects.
+  </div>
+
+  <h3>7.2 Popup dialog</h3>
+  <p>
+    When a stale object is detected, a WinForms dialog appears (always on top of other windows):
+  </p>
+
+<div class="flow">  ┌─────────────────────────────────────────────────────┐
+  │  ⚠  Stale Object Warning                            │
+  ├─────────────────────────────────────────────────────┤
+  │  STALE OBJECT DETECTED                              │
+  │                                                     │
+  │  Object  : Person (UID_Person = 'abc-123')          │
+  │                                                     │
+  │  Transport XDateUpdated : 2026-01-10 09:00:00       │
+  │  Database  XDateUpdated : 2026-02-15 14:23:07       │
+  │                                                     │
+  │  The database record was modified AFTER the         │
+  │  transport was created. Export this object anyway?  │
+  │                                                     │
+  │                         [ Export ]  [ Abort ]       │
+  └─────────────────────────────────────────────────────┘
+</div>
+
+  <table>
+    <tr><th>Button</th><th>Behaviour</th></tr>
+    <tr>
+      <td><strong>Export</strong> (blue)</td>
+      <td>The object is exported as-is (transport version wins). Processing continues normally.</td>
+    </tr>
+    <tr>
+      <td><strong>Abort</strong> (red)</td>
+      <td>
+        Depends on the <code>ReportOnDenial</code> config flag:
+        <br>• <code>true</code> (default): Report mode is activated (see §7.3).
+        <br>• <code>false</code>: Only this specific object is skipped; all others proceed normally.
+      </td>
+    </tr>
+  </table>
+
+  <h3>7.3 Report mode</h3>
+  <p>
+    When <strong>Abort</strong> is clicked and <code>ReportOnDenial = true</code>, the tool
+    switches into <em>report mode</em> for the remainder of the current transport file:
+  </p>
+  <ul style="margin-left:24px; margin-top:8px; margin-bottom:8px;">
+    <li>All subsequent stale-check popups are suppressed — every object is automatically included in the collection.</li>
+    <li>After parsing completes, each module prints a summary of all parsed objects to the console.</li>
+    <li><strong>No output files are written</strong> for this transport file.</li>
+    <li>The abort flag is reset at the start of the next transport file (if the ZIP contains multiple files).</li>
+  </ul>
+
+  <div class="important">
+    <strong>Key point:</strong>
+    Report mode is activated at the <em>parser</em> level and checked at the <em>module</em> level.
+    Each of the 8 module main scripts checks <code>$global:XDateCheck_StaleAbortTriggered</code>
+    after parsing and prints its report before returning without writing files.
+  </div>
+
+  <p>Example console output in report mode:</p>
+<pre>[REPORT MODE] Stale object abort triggered - no files will be written.
+    Table: Person (3 object(s))
+      - UID_Person = 'abc-123'
+      - UID_Person = 'def-456'
+      - UID_Person = 'ghi-789'
+    Table: PersonInOrg (1 object(s))
+      - UID_Org = 'org-001' AND UID_Person = 'abc-123'</pre>
+
+  <h3>Global state variables</h3>
+  <table>
+    <tr><th>Variable</th><th>Type</th><th>Purpose</th></tr>
+    <tr>
+      <td><code>$global:XDateCheck_ReportOnDenial</code></td>
+      <td>bool</td>
+      <td>Set from <code>config.json → ReportOnDenial</code> before processing starts. Controls Abort behaviour.</td>
+    </tr>
+    <tr>
+      <td><code>$global:XDateCheck_StaleAbortTriggered</code></td>
+      <td>bool</td>
+      <td>Set to <code>$true</code> when Abort is clicked (report mode on). Reset to <code>$false</code> at the start of each transport file.</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ══════════════════ 8. CSV MODE ═════════════════════════════════════════ -->
+<section id="csvmode">
+  <h2 class="section-title">8 · CSV Mode &amp; TableNameMapCSV</h2>
+
+  <h3>CSV Mode overview</h3>
+  <p>
+    Activate with <code>-CSVMode</code> or <code>"CSVMode": true</code> in config.
+    In this mode, DB-Object output is split into two files per table:
+  </p>
+  <ul style="margin-left:24px; margin-top:8px; margin-bottom:8px;">
+    <li><code>Template_&lt;TableName&gt;.xml</code> — schema file with <code>@ColumnName@</code> placeholders instead of values.</li>
+    <li><code>001-&lt;TableName&gt;.csv</code>, <code>002-&lt;TableName&gt;.csv</code>, … — one CSV per table, rows = objects, columns = field values.</li>
+  </ul>
+
+  <h3>TableNameMapCSV — schema-XML rename</h3>
+  <p>
+    When multiple transports use technical table names (e.g. <code>OrgHasEset</code>) but
+    business users refer to them by friendlier names (e.g. <em>Membership</em>), configure
+    a mapping CSV to rename only the schema XML file:
+  </p>
+
+  <p><strong>config.json:</strong></p>
+<pre><span class="str">"TableNameMapCSV"</span>: <span class="str">"C:\\Config\\TableNameMap.csv"</span></pre>
+
+  <p><strong>TableNameMap.csv:</strong></p>
+<pre>TableName,TemplateName
+OrgHasEset,Membership
+PersonInDepartment,DepartmentMember</pre>
+
+  <table>
+    <tr><th>File</th><th>Uses mapping?</th><th>Example filename</th></tr>
+    <tr><td>Schema XML</td><td>Yes</td><td><code>Template_Membership.xml</code></td></tr>
+    <tr><td>Data CSV</td><td>No — always original table name</td><td><code>001-OrgHasEset.csv</code></td></tr>
+    <tr><td>XML element names inside schema</td><td>No</td><td><code>&lt;OrgHasEset&gt;…&lt;/OrgHasEset&gt;</code></td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>Tip:</strong> If the CSV file is absent or the key is empty, the feature is silently
+    skipped and original table names are used everywhere.
+  </div>
+</section>
+
+<!-- ══════════════════ 9. OUTPUT STRUCTURE ════════════════════════════════ -->
+<section id="output">
+  <h2 class="section-title">9 · Output Structure</h2>
+
+  <p>All output is written under <code>OutPath\&lt;TransportName&gt;\&lt;ChildDir&gt;\</code>:</p>
+
+<div class="tree">OutPath\
+└── Transport_AssignmentDemo\
+    └── 2026_Assignment\
+        ├── DBObjects\
+        │   ├── 000-DBObjects_000_2026_02_20_14.xml  ← normal mode
+        │   ├── Template_Person.xml                  ← CSV mode schema
+        │   └── 001-Person.csv                       ← CSV mode data
+        │
+        ├── Processes\
+        │   ├── 000-MyProcess.xml
+        │   └── 001-AnotherProcess.xml
+        │
+        ├── Templates\
+        │   └── OrgHasEset.OrgName.vb
+        │
+        ├── Scripts\
+        │   └── EPC-0001234.vb
+        │
+        ├── TableScripts\
+        │   ├── OnSavingScript_OrgHasEset.vb
+        │   └── OnSavedScript_OrgHasEset.vb
+        │
+        ├── FormatScripts\
+        │   └── EPC-0001234.vb
+        │
+        ├── CanSeeScripts\
+        │   └── EPC-0001234.vb
+        │
+        ├── CanEditScripts\
+        │   └── EPC-0001234.vb
+        │
+        └── Logs\
+            └── export.log
+</div>
+</section>
+
+<!-- ══════════════════ 10. LOGGING ═════════════════════════════════════════ -->
+<section id="logging">
+  <h2 class="section-title">10 · Logging</h2>
+
+  <p>
+    The tool uses <strong>NLog</strong> (via <code>NLogger.psm1</code>). Obtain a logger
+    instance with <code>$Logger = Get-Logger</code>. All significant events are logged at the
+    <em>Info</em> level.
+  </p>
+
+  <table>
+    <tr><th>Log location</th><th>Default</th></tr>
+    <tr><td>File</td><td><code>&lt;OutPath&gt;\Logs\export.log</code></td></tr>
+    <tr><td>Console</td><td>Colour-coded <code>Write-Host</code> output</td></tr>
+  </table>
+
+  <p>
+    The log directory is created automatically. Override with <code>-LogPath</code> or
+    <code>"LogPath"</code> in config.json.
+  </p>
+
+  <h3>Colour coding in console</h3>
+  <table>
+    <tr><th>Colour</th><th>Meaning</th></tr>
+    <tr><td>Cyan</td><td>Section headers, counts</td></tr>
+    <tr><td>Yellow</td><td>Warnings, report mode messages, stale-object notices</td></tr>
+    <tr><td>Green</td><td>Success</td></tr>
+    <tr><td>Gray</td><td>Verbose detail (object names, config values)</td></tr>
+    <tr><td>Red</td><td>Errors</td></tr>
+    <tr><td>DarkCyan</td><td>FK metadata discovery</td></tr>
+  </table>
+</section>
+
+<!-- ══════════════════ 11. TROUBLESHOOTING ════════════════════════════════ -->
+<section id="troubleshooting">
+  <h2 class="section-title">11 · Troubleshooting</h2>
+
+  <table>
+    <tr><th>Symptom</th><th>Likely cause &amp; fix</th></tr>
+    <tr>
+      <td>No DbObjects found</td>
+      <td>The ZIP does not contain <code>ChangeContent</code> columns, or all content is in
+      <code>Diff</code> format. Check the raw XML file — open the extracted temp folder
+      (cleaned up after run) or add debug logging.</td>
+    </tr>
+    <tr>
+      <td>Freshness check popup never appears</td>
+      <td>The transport XML does not contain <code>XDateUpdated</code> values for objects,
+      OR the DB date equals the transport date. The check is silently skipped when no
+      transport date is found.</td>
+    </tr>
+    <tr>
+      <td>Report mode activates unexpectedly</td>
+      <td>A previous stale popup's <strong>Abort</strong> button was clicked. The flag is
+      reset per-file. If this is not desired, set <code>"ReportOnDenial": false</code> in
+      config.json — then Abort only skips the individual object.</td>
+    </tr>
+    <tr>
+      <td>Permission error on DM DLL</td>
+      <td>Ensure the PowerShell process has read access to the DLL path. On some systems
+      the DLL requires unblocking: right-click → Properties → Unblock.</td>
+    </tr>
+    <tr>
+      <td>SQL connection fails</td>
+      <td>Check <code>DMConfigDir</code> path and verify <code>database.config</code> contains
+      a valid connection string. Confirm network/firewall access to the SQL server.</td>
+    </tr>
+    <tr>
+      <td>CSV mapping not applied</td>
+      <td>Verify <code>TableNameMapCSV</code> path in config.json exists and the CSV column
+      headers are exactly <code>TableName</code> and <code>TemplateName</code> (case-sensitive).
+      Also confirm <code>CSVMode</code> is enabled — the mapping only applies in CSV mode.</td>
+    </tr>
+    <tr>
+      <td>Templates exporter fetches from DB</td>
+      <td>This is expected for <em>overwrite-only</em> changes (the transport toggles
+      <code>IsOverwritingTemplate</code> but does not carry the VB content). The exporter
+      will query the live DB to retrieve the current script body.</td>
+    </tr>
+    <tr>
+      <td><code>Add-Type: Assembly not found</code> (Windows.Forms)</td>
+      <td>The freshness popup requires <code>System.Windows.Forms</code>. On PowerShell 7
+      on Linux/macOS this is unavailable. Run on Windows, or disable the freshness check
+      by removing <code>XDateUpdated</code> column from transport objects.</td>
+    </tr>
+  </table>
+
+  <div class="tip">
+    <strong>Debug tip:</strong> Add <code>-Verbose</code> to the PowerShell invocation and
+    examine <code>Write-Warning</code> output — XDateCheck logs all skip decisions as warnings.
+  </div>
+</section>
+
+<hr style="margin-top:60px; border:none; border-top:1px solid #ccc;">
+<p style="text-align:center; font-size:9pt; color:#aaa; margin-top:16px;">
+  OIM Export Tool · Technical Reference · v2.0 · February 2026 · Internal use only
+</p>
+
+</body>
+</html>

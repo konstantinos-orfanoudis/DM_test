@@ -70,18 +70,15 @@ Import-Module (Join-Path $scriptDir "Templates_Exporter_PsModule.psm1") -Force
 #endregion
 
 #region Main Execution
-$Logger = Get-Logger
-
 try {
-  $Logger.info("OIM Templates Export Tool")
-  Write-Host "OIM Templates Export Tool" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger = Get-Logger
+  $Logger.Info("OIM Templates Export Tool")
 
   # Step 1: Parse input XML
   $Logger.Info("Parsing input XML: $ZipPath")
-  Write-Host "[1/3] Parsing input XML: $ZipPath"
   $templates = Get-TemplatesFromChangeContent -ZipPath $ZipPath
-  Write-Host "Found $($templates.Count) template(s)" -ForegroundColor Cyan
+
+  Write-Host "  Found $($templates.Count) template(s)" -ForegroundColor Cyan
   $Logger.Info("Found $($templates.Count) template(s)")
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
@@ -96,40 +93,36 @@ try {
 
   if ($templates.Count -gt 0) {
     # Step 2: Login to API
-    $Logger.Info("Opening session with DMConfigDir")
-    Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
-    Write-Host "Authentication successful"
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")
-    Write-Host ""
-    
+
     # Step 3: Export Templates
-    Write-Host "[3/3] Exporting to: $OutPath"
-    $Logger.Info("Exporting to: $OutPath")
     $outDirTemplates = Join-Path -Path $OutPath -ChildPath "Templates"
+    Write-Host "  Exporting to: $outDirTemplates" -ForegroundColor Gray
+    $Logger.Info("Exporting to: $outDirTemplates")
     Write-TemplatesAsVbNetFiles -Templates $templates -OutDir $outDirTemplates
-    
-    Write-Host ""
-    Write-Host "Export completed successfully!" -ForegroundColor Green
     $Logger.Info("Export completed successfully!")
-  } 
+  }
   else {
     $Logger = Get-Logger
-    $Logger.Info("No templates found in ChangeContent in: $ZipPath")
-    Write-Host "No templates found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
+    Write-Host "  No templates found in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No templates found in: $ZipPath")
   }
 }
 catch {
+  $Logger = Get-Logger
   $Logger.Info("ERROR: Export failed!")
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
+  $Logger.Info($_.Exception.Message)
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    $Logger = Get-Logger
     $Logger.Info("Stack Trace:")
+    $Logger.Info($_.ScriptStackTrace)
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }

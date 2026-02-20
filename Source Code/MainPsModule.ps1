@@ -245,28 +245,24 @@ try {
       # Process Scripts
       Write-Host "  - Extracting Scripts..." -ForegroundColor Gray
       Scripts_Main_PsModule @commonParams
-      
-      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
       # Process Table Scripts
       Write-Host "  - Extracting Table Scripts..." -ForegroundColor Gray
       TableScripts_Main_PsModule @commonParams
-      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
       # Process Format Scripts
       Write-Host "  - Extracting Format Scripts..." -ForegroundColor Gray
       FormatScripts_Main_PsModule @commonParams
-      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
       # Process CanSee Scripts
-      Write-Host "  - Extracting Format CanSee Scripts..." -ForegroundColor Gray
+      Write-Host "  - Extracting CanSee Scripts..." -ForegroundColor Gray
       CanSeeScripts_Main_PsModule @commonParams
-      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
 
       # Process CanEdit Scripts
-      Write-Host "  - Extracting Format CanEdit Scripts..." -ForegroundColor Gray
+      Write-Host "  - Extracting CanEdit Scripts..." -ForegroundColor Gray
       CanEditScripts_Main_PsModule @commonParams
-      Write-Host "  ✓ Completed processing: $relativePath" -ForegroundColor Green
+
+      Write-Host "  ✓ Completed: $relativePath" -ForegroundColor Green
     }
     catch {
       $Logger = Get-Logger

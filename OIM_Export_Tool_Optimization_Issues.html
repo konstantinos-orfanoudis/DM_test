@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OIM Export Tool — Optimization Issues Report</title>
+  <style>
+    :root {
+      --bg:        #1e1e2e;
+      --surface:   #282840;
+      --border:    #3a3a5c;
+      --accent:    #7c9ef8;
+      --accent2:   #c792ea;
+      --green:     #a8cc8c;
+      --yellow:    #e5c07b;
+      --red:       #e06c75;
+      --orange:    #d19a66;
+      --text:      #cdd6f4;
+      --muted:     #6c7086;
+      --code-bg:   #1a1a2e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    nav {
+      width: 270px;
+      min-width: 270px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      padding: 0 20px 12px;
+    }
+    nav a {
+      display: block;
+      padding: 7px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-left: 3px solid transparent;
+      transition: border-color .15s, background .15s;
+    }
+    nav a:hover { background: rgba(124,158,248,.08); border-left-color: var(--accent); }
+    nav .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .badge-style  { background: #2a3e6a; color: #7c9ef8; }
+    .badge-lint   { background: #3a2e5c; color: #c792ea; }
+    .badge-bug    { background: #4a1e1e; color: #e06c75; }
+    .badge-redund { background: #2e3a2a; color: #a8cc8c; }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 48px 56px;
+      max-width: 980px;
+    }
+    header { margin-bottom: 40px; }
+    header h1 { font-size: 28px; color: var(--accent); margin-bottom: 6px; }
+    header p  { color: var(--muted); font-size: 14px; }
+    header .meta { margin-top: 14px; display: flex; gap: 24px; flex-wrap: wrap; }
+    header .meta span { font-size: 13px; color: var(--muted); }
+    header .meta strong { color: var(--text); }
+
+    /* ── Sections ── */
+    .issue {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 32px;
+      margin-bottom: 28px;
+    }
+    .issue-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .issue-number {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .sev-style  { background: #1a2a4a; color: #7c9ef8; border: 1px solid #7c9ef8; }
+    .sev-lint   { background: #2a1e4a; color: #c792ea; border: 1px solid #c792ea; }
+    .sev-bug    { background: #3a1414; color: #e06c75; border: 1px solid #e06c75; }
+    .sev-redund { background: #1e2e1a; color: #a8cc8c; border: 1px solid #a8cc8c; }
+
+    .issue-title { font-size: 17px; font-weight: 600; color: var(--text); }
+    .issue-meta  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .sev-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    .pill-style  { background: #1a2a4a; color: #7c9ef8; }
+    .pill-lint   { background: #2a1e4a; color: #c792ea; }
+    .pill-bug    { background: #3a1414; color: #e06c75; }
+    .pill-redund { background: #1e2e1a; color: #a8cc8c; }
+
+    h2.section-heading {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+    p { margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 14px 0;
+      font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    }
+    code { font-family: inherit; }
+    .kw  { color: #c792ea; }  /* keyword */
+    .fn  { color: #82aaff; }  /* function/cmdlet */
+    .str { color: #c3e88d; }  /* string */
+    .cmt { color: #546e7a; font-style: italic; }  /* comment */
+    .var { color: #f78c6c; }  /* variable */
+    .ok  { color: #a8cc8c; }  /* good */
+    .bad { color: #e06c75; }  /* bad */
+    .num { color: #f78c6c; }  /* number */
+
+    /* ── Files list ── */
+    .files {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 12px 0;
+    }
+    .file-tag {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-family: Consolas, monospace;
+      color: var(--accent);
+    }
+    .file-tag.warn { color: var(--yellow); border-color: #5a4a1e; }
+
+    /* ── Summary table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin-top: 8px;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--code-bg);
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(124,158,248,.04); }
+    .td-num { font-weight: 700; color: var(--muted); }
+    .td-fix { font-size: 12px; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+
+    /* ── Fix recommendation box ── */
+    .fix-box {
+      border-radius: 7px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 13.5px;
+      border-left: 3px solid;
+    }
+    .fix-box.info  { background: #1a2438; border-color: var(--accent);  color: #aac4f8; }
+    .fix-box.warn  { background: #2e2414; border-color: var(--yellow);  color: var(--yellow); }
+    .fix-box.ok    { background: #1a2814; border-color: var(--green);   color: var(--green); }
+    .fix-box strong { color: inherit; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav>
+  <h2>Issues Found</h2>
+  <a href="#issue1">#1 Logger method casing <span class="badge badge-style">Style</span></a>
+  <a href="#issue2">#2 Get-Logger casing <span class="badge badge-style">Style</span></a>
+  <a href="#issue3">#3 Unused $session <span class="badge badge-lint">Linter</span></a>
+  <a href="#issue4">#4 Counter increment style <span class="badge badge-style">Style</span></a>
+  <a href="#issue5">#5 Join-Path style <span class="badge badge-style">Style</span></a>
+  <a href="#issue6">#6 Redundant Get-Logger calls <span class="badge badge-redund">Redundant</span></a>
+  <a href="#issue7">#7 "teable" typo in log <span class="badge badge-bug">Bug</span></a>
+  <a href="#summary">Summary Table</a>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main>
+  <header>
+    <h1>OIM Export Tool — Optimization Issues</h1>
+    <p>Cross-codebase inconsistencies identified after the Write-Host production reformat (Feb 2026).</p>
+    <div class="meta">
+      <span><strong>Scope:</strong> All <code>*.psm1</code> files under <code>Source Code\</code></span>
+      <span><strong>Issues found:</strong> 7</span>
+      <span><strong>Runtime bugs:</strong> 1 (#7)</span>
+      <span><strong>Style / consistency:</strong> 5</span>
+      <span><strong>Linter warnings:</strong> 1 (#3)</span>
+    </div>
+  </header>
+
+  <!-- ─────── ISSUE 1 ─────── -->
+  <div class="issue" id="issue1">
+    <div class="issue-header">
+      <div class="issue-number sev-style">1</div>
+      <div>
+        <div class="issue-title">
+          <code>$Logger.info()</code> vs <code>$Logger.Info()</code>
+          <span class="sev-pill pill-style">Style</span>
+        </div>
+        <div class="issue-meta">NLog method call casing — widespread across all exporter &amp; parser files</div>
+      </div>
+    </div>
+
+    <p>
+      PowerShell dispatches .NET method calls case-insensitively, so both <code>.info()</code> and <code>.Info()</code>
+      work at runtime. However, the codebase mixes both forms with no consistent convention. All 8 <code>*_Main_PsModule.psm1</code>
+      files were standardised to <code>.Info()</code> during the reformat, but the exporter and parser files beneath them still use lowercase.
+    </p>
+
+    <div class="files">
+      <span class="file-tag warn">Scripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">TableScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">FormatScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">CanSeeScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">CanEditScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">DBObjects_XmlParser.psm1</span>
+      <span class="file-tag warn">DBObjects_XmlExporter.psm1</span>
+      <span class="file-tag warn">DBObjects_CsvExporter.psm1</span>
+      <span class="file-tag warn">DBObjects_FilterColumnsPsModule.psm1</span>
+      <span class="file-tag warn">Process/DmDoc.psm1</span>
+      <span class="file-tag warn">Process/Export-Process.psm1</span>
+    </div>
+
+<pre><code><span class="cmt"># Current (mixed — both work, but inconsistent)</span>
+<span class="var">$Logger</span>.<span class="bad">info</span>(<span class="str">"The UID_DialogColumn found is: $s"</span>)
+<span class="var">$Logger</span>.<span class="ok">Info</span>(<span class="str">"Export completed successfully!"</span>)
+
+<span class="cmt"># Recommended — match the NLog API surface and the Main modules</span>
+<span class="var">$Logger</span>.<span class="ok">Info</span>(<span class="str">"The UID_DialogColumn found is: $s"</span>)</code></pre>
+
+    <div class="fix-box info">
+      <strong>Fix:</strong> Global search-and-replace <code>$Logger.info(</code> → <code>$Logger.Info(</code> across all <code>.psm1</code> files.
+      No logic change — purely cosmetic.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 2 ─────── -->
+  <div class="issue" id="issue2">
+    <div class="issue-header">
+      <div class="issue-number sev-style">2</div>
+      <div>
+        <div class="issue-title">
+          <code>Get-Logger</code> vs <code>Get-logger</code> casing
+          <span class="sev-pill pill-style">Style</span>
+        </div>
+        <div class="issue-meta">PowerShell cmdlet casing — 2 exporter files</div>
+      </div>
+    </div>
+
+    <p>
+      The custom <code>Get-Logger</code> function is called as <code>Get-logger</code> (lowercase <code>l</code>) in several places.
+      PowerShell cmdlets are case-insensitive, so this works. However, it creates visual inconsistency and makes
+      grep-based searches unreliable.
+    </p>
+
+    <div class="files">
+      <span class="file-tag warn">DBObjects_CsvExporter.psm1</span>
+      <span class="file-tag warn">DBObjects_FilterColumnsPsModule.psm1</span>
+    </div>
+
+<pre><code><span class="cmt"># Found in DBObjects_CsvExporter.psm1 (lines 243, 317)</span>
+<span class="var">$Logger</span> = <span class="bad">Get-logger</span>
+<span class="var">$Logger</span>.<span class="fn">info</span>(<span class="str">"Wrote schema XML: $tableXmlPath"</span>)
+
+<span class="cmt"># Found in DBObjects_FilterColumnsPsModule.psm1 (lines 44, 50, 65)</span>
+<span class="var">$Logger</span> = <span class="bad">Get-logger</span>
+<span class="var">$Logger</span>.<span class="fn">info</span>(<span class="str">"CSV ExcludedColumns file found. Importing..."</span>)
+
+<span class="cmt"># Recommended</span>
+<span class="var">$Logger</span> = <span class="ok">Get-Logger</span></code></pre>
+
+    <div class="fix-box info">
+      <strong>Fix:</strong> Search-and-replace <code>Get-logger</code> → <code>Get-Logger</code> in the two affected files.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 3 ─────── -->
+  <div class="issue" id="issue3">
+    <div class="issue-header">
+      <div class="issue-number sev-lint">3</div>
+      <div>
+        <div class="issue-title">
+          <code>$session</code> assigned but never used (6 of 8 Main modules)
+          <span class="sev-pill pill-lint">Linter</span>
+        </div>
+        <div class="issue-meta">PSUseDeclaredVarsMoreThanAssignments — Scripts, TableScripts, FormatScripts, CanSeeScripts, CanEditScripts, Templates</div>
+      </div>
+    </div>
+
+    <p>
+      <code>Connect-OimPSModule</code> returns a session handle. In <strong>DBObjects</strong> and <strong>Process</strong> this
+      handle is genuinely consumed — passed to <code>Get-ForeignKeyMetadataPsModule</code>, <code>Get-ColumnPermissionsPsModule</code>,
+      and <code>GetAllProcessFromChangeLabel</code>.
+    </p>
+    <p>
+      In the other 6 modules the call is made purely for its <em>side effect</em>: loading the DLL and establishing credentials
+      so that internal SQL helpers can use the connection. The returned <code>$session</code> is never referenced again, which
+      triggers the <code>PSUseDeclaredVarsMoreThanAssignments</code> PSScriptAnalyzer warning and misleads readers into
+      thinking the session object is used downstream.
+    </p>
+
+    <div class="files">
+      <span class="file-tag warn">Scripts_Main_PsModule.psm1</span>
+      <span class="file-tag warn">TableScripts_Main_PsModule.psm1</span>
+      <span class="file-tag warn">FormatScripts_Main_PsModule.psm1</span>
+      <span class="file-tag warn">CanSeeScripts_Main_PsModule.psm1</span>
+      <span class="file-tag warn">CanEditScripts_Main_PsModule.psm1</span>
+      <span class="file-tag warn">Templates_Main_PsModule.psm1</span>
+    </div>
+
+<pre><code><span class="cmt"># Current — $session stored but never passed anywhere</span>
+<span class="var">$session</span> = <span class="fn">Connect-OimPSModule</span> -DMConfigDir <span class="var">$DMConfigDir</span> -DMDll <span class="var">$DMDll</span> ...
+<span class="var">$Logger</span> = <span class="fn">Get-Logger</span>
+<span class="fn">Write-ScriptsAsVbNetFiles</span> -Scripts <span class="var">$scripts</span> -OutDir <span class="var">$outDirScripts</span>  <span class="cmt"># no $session here</span>
+
+<span class="cmt"># Recommended — assign to $null to document the intentional discard</span>
+<span class="var">$null</span> = <span class="fn">Connect-OimPSModule</span> -DMConfigDir <span class="var">$DMConfigDir</span> -DMDll <span class="var">$DMDll</span> ...
+<span class="var">$Logger</span> = <span class="fn">Get-Logger</span>
+<span class="fn">Write-ScriptsAsVbNetFiles</span> -Scripts <span class="var">$scripts</span> -OutDir <span class="var">$outDirScripts</span></code></pre>
+
+    <div class="fix-box warn">
+      <strong>Fix:</strong> Replace <code>$session = Connect-OimPSModule</code> with <code>$null = Connect-OimPSModule</code>
+      in the 6 affected modules. This silences the linter warning and explicitly signals to readers that the return value
+      is intentionally discarded.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 4 ─────── -->
+  <div class="issue" id="issue4">
+    <div class="issue-header">
+      <div class="issue-number sev-style">4</div>
+      <div>
+        <div class="issue-title">
+          <code>$counter = $counter + 1</code> vs <code>$counter++</code>
+          <span class="sev-pill pill-style">Style</span>
+        </div>
+        <div class="issue-meta">Mixed counter increment style across 7 exporter files</div>
+      </div>
+    </div>
+
+    <p>
+      The codebase uses two different idioms to increment a counter variable. Most exporter files use the verbose
+      assignment form; <code>Process_Main_PsModule.psm1</code> and <code>DBObjects_CsvExporter.psm1</code> use the
+      compact <code>++</code> operator.
+    </p>
+
+    <div class="files">
+      <span class="file-tag warn">TableScripts_Exporter_PsModule.psm1 ×5</span>
+      <span class="file-tag warn">Templates_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">FormatScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">CanSeeScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">CanEditScripts_Exporter_PsModule.psm1</span>
+      <span class="file-tag warn">Scripts_Exporter_PsModule.psm1</span>
+    </div>
+
+<pre><code><span class="cmt"># Current — verbose form (most exporter files)</span>
+<span class="var">$counter</span> = <span class="var">$counter</span> + <span class="num">1</span>
+
+<span class="cmt"># Current — compact form (Process_Main, DBObjects_CsvExporter)</span>
+<span class="var">$counter</span>++
+
+<span class="cmt"># Recommended — standardise on the compact form</span>
+<span class="var">$counter</span>++</code></pre>
+
+    <div class="fix-box info">
+      <strong>Fix:</strong> Search-and-replace <code>$counter = $counter + 1</code> → <code>$counter++</code>
+      across all exporter files. No behaviour change.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 5 ─────── -->
+  <div class="issue" id="issue5">
+    <div class="issue-header">
+      <div class="issue-number sev-style">5</div>
+      <div>
+        <div class="issue-title">
+          <code>Join-Path -Path X -ChildPath Y</code> vs <code>Join-Path X Y</code>
+          <span class="sev-pill pill-style">Style</span>
+        </div>
+        <div class="issue-meta">Named-parameter vs positional form — 5 Main modules vs 2</div>
+      </div>
+    </div>
+
+    <p>
+      Five of the Main modules use explicit <code>-Path</code> / <code>-ChildPath</code> parameter names; the two
+      more recently written modules (<code>DBObjects</code> and <code>Process</code>) use the shorter positional form.
+      Both are functionally identical.
+    </p>
+
+<pre><code><span class="cmt"># Current — verbose named parameters (Templates, FormatScripts, TableScripts, CanSeeScripts, CanEditScripts, Scripts)</span>
+<span class="var">$outDirScripts</span> = <span class="fn">Join-Path</span> -Path <span class="var">$OutPath</span> -ChildPath <span class="str">"Scripts"</span>
+
+<span class="cmt"># Current — short positional form (DBObjects, Process)</span>
+<span class="var">$outpathfolder</span> = <span class="fn">Join-Path</span> <span class="var">$OutPath</span> <span class="str">"DBObjects"</span>
+
+<span class="cmt"># Recommended — standardise on the short form</span>
+<span class="var">$outDirScripts</span> = <span class="fn">Join-Path</span> <span class="var">$OutPath</span> <span class="str">"Scripts"</span></code></pre>
+
+    <div class="fix-box info">
+      <strong>Fix:</strong> Normalise all <code>Join-Path -Path X -ChildPath Y</code> calls to <code>Join-Path X Y</code>
+      in the 5 affected Main modules.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 6 ─────── -->
+  <div class="issue" id="issue6">
+    <div class="issue-header">
+      <div class="issue-number sev-redund">6</div>
+      <div>
+        <div class="issue-title">
+          Redundant <code>$Logger = Get-Logger</code> calls inside catch / if blocks
+          <span class="sev-pill pill-redund">Redundant</span>
+        </div>
+        <div class="issue-meta">42 total Get-Logger calls across 8 Main modules; many are unnecessary</div>
+      </div>
+    </div>
+
+    <p>
+      <code>Get-Logger</code> must be called after <code>Connect-OimPSModule</code> because the DLL load reinitialises
+      NLog and the previous logger handle becomes stale. That one re-call is intentional and <strong>must be kept</strong>.
+    </p>
+    <p>
+      All other repeated calls within the same try/catch scope — inside <code>if</code> blocks that do not call
+      <code>Connect-OimPSModule</code>, inside catch blocks, inside nested if blocks in catch — are redundant.
+      The <code>$Logger</code> from the outer scope is still valid there.
+    </p>
+
+<pre><code><span class="cmt"># Pattern found in every Main module's catch block</span>
+<span class="kw">catch</span> {
+  <span class="var">$Logger</span> = <span class="fn">Get-Logger</span>        <span class="cmt"># ← redundant — logger not invalidated by Connect-OimPSModule in catch scope</span>
+  <span class="var">$Logger</span>.<span class="fn">Info</span>(<span class="str">"ERROR: Export failed!"</span>)
+  ...
+  <span class="kw">if</span> (<span class="var">$_</span>.ScriptStackTrace) {
+    <span class="var">$Logger</span> = <span class="fn">Get-Logger</span>      <span class="cmt"># ← doubly redundant — same catch scope, no DLL reload</span>
+    <span class="var">$Logger</span>.<span class="fn">Info</span>(<span class="str">"Stack Trace:"</span>)
+  }
+}
+
+<span class="cmt"># What's actually needed</span>
+<span class="kw">catch</span> {
+  <span class="cmt"># $Logger from try scope is still valid — no re-fetch needed</span>
+  <span class="var">$Logger</span>.<span class="fn">Info</span>(<span class="str">"ERROR: Export failed!"</span>)
+  ...
+  <span class="kw">if</span> (<span class="var">$_</span>.ScriptStackTrace) {
+    <span class="var">$Logger</span>.<span class="fn">Info</span>(<span class="str">"Stack Trace:"</span>)
+  }
+}
+
+<span class="cmt"># The ONE re-call that IS required (after DLL load reinitialises NLog)</span>
+<span class="var">$session</span> = <span class="fn">Connect-OimPSModule</span> ...
+<span class="var">$Logger</span> = <span class="fn">Get-Logger</span>    <span class="cmt"># ← required — DLL load reset NLog</span></code></pre>
+
+    <div class="fix-box ok">
+      <strong>Fix:</strong> Remove all <code>$Logger = Get-Logger</code> calls that are NOT immediately following
+      <code>Connect-OimPSModule</code>. This reduces noise in the call stack and makes the one mandatory re-fetch
+      stand out clearly.
+    </div>
+  </div>
+
+  <!-- ─────── ISSUE 7 ─────── -->
+  <div class="issue" id="issue7">
+    <div class="issue-header">
+      <div class="issue-number sev-bug">7</div>
+      <div>
+        <div class="issue-title">
+          <code>"teable"</code> typo in log string
+          <span class="sev-pill pill-bug">Bug (log)</span>
+        </div>
+        <div class="issue-meta">DBObjects_FilterColumnsPsModule.psm1 — line 66</div>
+      </div>
+    </div>
+
+    <p>
+      A log message in the column-permissions filter function contains a typo: <code>teable</code> instead of
+      <code>table</code>. This is a cosmetic bug — it only affects the log file, not runtime behaviour — but it
+      makes log searches harder.
+    </p>
+
+<pre><code><span class="cmt"># DBObjects_FilterColumnsPsModule.psm1 : 66</span>
+<span class="var">$Logger</span>.<span class="fn">info</span>(<span class="str">"The selected <span class="bad">teable</span>(s):"</span>)   <span class="cmt"># typo</span>
+
+<span class="cmt"># Fix</span>
+<span class="var">$Logger</span>.<span class="fn">Info</span>(<span class="str">"The selected <span class="ok">table</span>(s):"</span>)</code></pre>
+
+    <div class="fix-box warn">
+      <strong>Fix:</strong> Edit <a style="color:var(--yellow)" href="Source Code/Modules/DBObjects/DBObjects_FilterColumnsPsModule.psm1">
+      DBObjects_FilterColumnsPsModule.psm1</a> line 66 — replace <code>"teable"</code> with <code>"table"</code>.
+      Also normalise <code>.info</code> → <code>.Info</code> on the same line (see Issue #1).
+    </div>
+  </div>
+
+  <!-- ─────── SUMMARY TABLE ─────── -->
+  <div class="issue" id="summary">
+    <h2 class="section-heading">Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Issue</th>
+          <th>Severity</th>
+          <th>Files affected</th>
+          <th>Fix effort</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-num">1</td>
+          <td><code>$Logger.info()</code> vs <code>.Info()</code></td>
+          <td><span class="td-fix pill-style">Style</span></td>
+          <td>11 exporter/parser files</td>
+          <td>Global search-replace</td>
+        </tr>
+        <tr>
+          <td class="td-num">2</td>
+          <td><code>Get-logger</code> vs <code>Get-Logger</code></td>
+          <td><span class="td-fix pill-style">Style</span></td>
+          <td>DBObjects_CsvExporter, DBObjects_FilterColumns</td>
+          <td>Search-replace in 2 files</td>
+        </tr>
+        <tr>
+          <td class="td-num">3</td>
+          <td><code>$session</code> assigned but unused</td>
+          <td><span class="td-fix pill-lint">Linter</span></td>
+          <td>6 Main modules (Scripts, TableScripts, FormatScripts, CanSeeScripts, CanEditScripts, Templates)</td>
+          <td><code>$null =</code> assignment in 6 files</td>
+        </tr>
+        <tr>
+          <td class="td-num">4</td>
+          <td><code>$counter = $counter + 1</code> vs <code>$counter++</code></td>
+          <td><span class="td-fix pill-style">Style</span></td>
+          <td>7 exporter files (10+ occurrences)</td>
+          <td>Search-replace</td>
+        </tr>
+        <tr>
+          <td class="td-num">5</td>
+          <td><code>Join-Path -Path -ChildPath</code> vs positional</td>
+          <td><span class="td-fix pill-style">Style</span></td>
+          <td>5 Main modules</td>
+          <td>Search-replace in 5 files</td>
+        </tr>
+        <tr>
+          <td class="td-num">6</td>
+          <td>Redundant <code>Get-Logger</code> calls in catch/if blocks</td>
+          <td><span class="td-fix pill-redund">Redundant</span></td>
+          <td>All 8 Main modules (42 total calls)</td>
+          <td>Manual review per file</td>
+        </tr>
+        <tr>
+          <td class="td-num">7</td>
+          <td><code>"teable"</code> typo in log string</td>
+          <td><span class="td-fix pill-bug">Bug (log)</span></td>
+          <td>DBObjects_FilterColumnsPsModule.psm1 : 66</td>
+          <td>Single line edit</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="fix-box ok" style="margin-top:20px">
+      <strong>Recommended fix order:</strong> #7 (actual bug) → #3 (linter / intent clarity) → #6 (redundancy cleanup) → #1/#2/#4/#5 (pure style, can be done in one pass with a formatter).
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

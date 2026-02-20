@@ -70,18 +70,15 @@ Import-Module (Join-Path $scriptDir "Scripts_Exporter_PsModule.psm1") -Force
 #endregion
 
 #region Main Execution
-$Logger = Get-Logger
 try {
-  $Logger.info("OIM Scripts Export Tool")
-  Write-Host "OIM Scripts Export Tool" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger = Get-Logger
+  $Logger.Info("OIM Scripts Export Tool")
 
   # Step 1: Parse input XML
-  Write-Host "[1/3] Parsing input XML: $ZipPath"
   $Logger.Info("Parsing input XML: $ZipPath")
   $scripts = Get-ScriptKeysFromChangeLabel -ZipPath $ZipPath
 
-  Write-Host "Found $($scripts.Count) script(s)" -ForegroundColor Cyan
+  Write-Host "  Found $($scripts.Count) script(s)" -ForegroundColor Cyan
   $Logger.Info("Found $($scripts.Count) script(s)")
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
@@ -94,44 +91,36 @@ try {
 
   if ($scripts.Count -gt 0) {
     # Step 2: Login to API
-    Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
-    $Logger.Info("Opening session with DMConfigDir")
+    $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
-    Write-Host "Authentication successful"
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")
-    Write-Host ""
-    
+
     # Step 3: Export Scripts
-    Write-Host "[3/3] Exporting to: $OutPath"
-    $Logger.Info("Exporting to: $OutPath")
     $outDirScripts = Join-Path -Path $OutPath -ChildPath "Scripts"
+    Write-Host "  Exporting to: $outDirScripts" -ForegroundColor Gray
+    $Logger.Info("Exporting to: $outDirScripts")
     Write-ScriptsAsVbNetFiles -Scripts $scripts -OutDir $outDirScripts
-    
-    Write-Host ""
-    Write-Host "Export completed successfully!" -ForegroundColor Green
     $Logger.Info("Export completed successfully!")
-  } 
+  }
   else {
     $Logger = Get-Logger
-    Write-Host "No scripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
-    $Logger.Info("No scripts found in ChangeContent in: $ZipPath")
+    Write-Host "  No scripts found in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No scripts found in: $ZipPath")
   }
 }
 catch {
   $Logger = Get-Logger
   $Logger.Info("ERROR: Export failed!")
   $Logger.Info($_.Exception.Message)
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
     $Logger = Get-Logger
     $Logger.Info("Stack Trace:")
     $Logger.Info($_.ScriptStackTrace)
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }

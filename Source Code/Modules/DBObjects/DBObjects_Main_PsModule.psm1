@@ -93,35 +93,31 @@ Import-Module (Join-Path $scriptDir "DBObjects_FilterColumnsPsModule.psm1") -For
 
 #region Main Execution
 try {
-  Write-Host "OIM DbObjects Export Tool" -ForegroundColor Cyan
-  Write-Host "Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})"
-  Write-Host ""
   $Logger = Get-Logger
-  $Logger.info("OIM DbObjects Export Tool")
-  $Logger.info("Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})")
+  $Logger.Info("OIM DbObjects Export Tool")
+  $Logger.Info("Mode: $(if($CSVMode){'CSV (Separate XML + CSV per table)'}else{'Normal (Single XML with data)'})")
 
   # Step 1: Parse input XML
-  Write-Host "[1/5] Parsing input XML: $ZipPath"
-  $Logger.info("Parsing input XML")
+  Write-Host "  [1/5] Parsing input XML: $ZipPath"
+  $Logger.Info("Parsing input XML")
   $dbObjects = Get-AllDbObjectsFromChangeContent -ZipPath $ZipPath -IncludeEmptyValues:$IncludeEmptyValues
 
   if (-not $dbObjects -or $dbObjects.Count -eq 0) {
-    Write-Host "No embedded DbObjects found in ChangeContent columns." -ForegroundColor Yellow
+    Write-Host "  No DbObjects found in: $ZipPath" -ForegroundColor Yellow
     $Logger = Get-Logger
-    $Logger.info("No embedded DbObjects found in ChangeContent columns.")
+    $Logger.Info("No embedded DbObjects found in ChangeContent columns.")
     return
   }
 
   $uniqueTables = $dbObjects.TableName | Where-Object { $_ } | Sort-Object -Unique
-  Write-Host "Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')"
-  Write-Host ""
+  Write-Host "  Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')"
   $Logger = Get-Logger
-  $Logger.info("Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')")
+  $Logger.Info("Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')")
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
   if ($global:XDateCheck_StaleAbortTriggered) {
     Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
-    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
     foreach ($tbl in $uniqueTables) {
       $tblObjs = @($dbObjects | Where-Object { $_.TableName -eq $tbl })
       Write-Host "    Table: $tbl ($($tblObjs.Count) object(s))" -ForegroundColor Cyan
@@ -135,80 +131,69 @@ try {
   }
 
   # Step 2: Login to API
-  Write-Host "[2/5] Opening session with DMConfigDir: $DMConfigDir"
-  $Logger.info("Opening session with DMConfigDir: $DMConfigDir")
+  Write-Host "  [2/5] Opening session with DMConfigDir: $DMConfigDir"
+  $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
   $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
   $Logger = Get-Logger
-  $Logger.info("Authentication successful")
-  Write-Host "Authentication successful"
-  Write-Host ""
+  $Logger.Info("Authentication successful")
 
   # Step 2.5: Discover FK metadata and enrich parsed objects
-  Write-Host "[2.5/5] Discovering FK metadata for tables: $($uniqueTables -join ', ')" -ForegroundColor Cyan
-  $Logger.info("Discovering FK metadata for tables: $($uniqueTables -join ', ')")
+  Write-Host "  [2.5/5] Discovering FK metadata for tables: $($uniqueTables -join ', ')" -ForegroundColor Cyan
+  $Logger.Info("Discovering FK metadata for tables: $($uniqueTables -join ', ')")
   $fkMetaByTable = Get-ForeignKeyMetadataPsModule -Session $session -Tables $uniqueTables
   $dbObjects = Enrich-DbObjectsWithFkMetadata -DbObjects $dbObjects -FkMetaByTable $fkMetaByTable
-  $Logger.info("FK metadata enrichment completed")
-  Write-Host "FK metadata enrichment completed"
-  Write-Host ""
+  $Logger.Info("FK metadata enrichment completed")
 
   # Step 2.6: Sort objects by SortOrder from QBMTaggedChange wrapper
-  Write-Host "[2.6/5] Sorting objects by SortOrder..." -ForegroundColor Cyan
-  $Logger.info("Sorting objects by SortOrder")
+  Write-Host "  [2.6/5] Sorting objects by SortOrder..." -ForegroundColor Cyan
+  $Logger.Info("Sorting objects by SortOrder")
   $dbObjects = Sort-DbObjectsBySortOrder -DbObjects $dbObjects
-  $Logger.info("SortOrder sort completed")
-  Write-Host ""
+  $Logger.Info("SortOrder sort completed")
 
   # Step 3: Get column permissions
-  Write-Host "[3/5] Retrieving column permissions for tables: $($uniqueTables -join ', ')"
-  $Logger.info("Retrieving column permissions for tables: $($uniqueTables -join ', ')")
+  Write-Host "  [3/5] Retrieving column permissions for tables: $($uniqueTables -join ', ')"
+  $Logger.Info("Retrieving column permissions for tables: $($uniqueTables -join ', ')")
   $allowedByTable = Get-ColumnPermissionsPsModule -Session $session -Tables $uniqueTables
-  Write-Host "Retrieved permissions for $($allowedByTable.Count) table(s)"
-  Write-Host ""
-  $logger.info("Retrieved permissions for $($allowedByTable.Count) table(s)")
+  Write-Host "  Retrieved permissions for $($allowedByTable.Count) table(s)"
+  $Logger.Info("Retrieved permissions for $($allowedByTable.Count) table(s)")
 
   # Step 4: Filter columns
-  Write-Host "[4/5] Filtering columns based on permissions"
-  $Logger.info("Filtering columns based on permissions")
+  Write-Host "  [4/5] Filtering columns based on permissions"
+  $Logger.Info("Filtering columns based on permissions")
   $dbObjectsFiltered = Filter-DbObjectsByAllowedColumnsPsModule -DbObjects $dbObjects -AllowedColumnsByTable $allowedByTable
   $totalColumns = ($dbObjectsFiltered | ForEach-Object { $_.Columns.Count } | Measure-Object -Sum).Sum
-  Write-Host "Retained $totalColumns allowed column(s) across all objects"
-  Write-Host ""
-  $Logger.info("Retained $totalColumns allowed column(s) across all objects")
+  Write-Host "  Retained $totalColumns allowed column(s) across all objects"
+  $Logger.Info("Retained $totalColumns allowed column(s) across all objects")
 
   # Step 5: Export
-  $outpathfolder = "$OutPath"+"\DBObjects"  
-      if (-not (Test-Path $outpathfolder)) {
-          New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
-      }
-  Write-Host "[5/5] Exporting to: $outpathfolder"
-  $Logger.info("Exporting to: $outpathfolder")
-  
+  $outpathfolder = Join-Path $OutPath "DBObjects"
+  if (-not (Test-Path $outpathfolder)) {
+    New-Item -Path $outpathfolder -ItemType Directory -Force | Out-Null
+  }
+  Write-Host "  [5/5] Exporting to: $outpathfolder"
+  $Logger.Info("Exporting to: $outpathfolder")
+
   if ($CSVMode) {
     Export-ToCsvMode -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml -TableNameMapCsvPath $TableNameMapCSV | Out-Null
   }
   else {
     Export-ToNormalXml -DbObjects $dbObjectsFiltered -OutPath $outpathfolder -PreviewXml:$PreviewXml | Out-Null
   }
-  
-  Write-Host ""
-  Write-Host "Export completed successfully!" -ForegroundColor Green
-  $Logger.info("Export completed successfully!")
+
+  $Logger.Info("Export completed successfully!")
 }
 catch {
-  $Logger = Get-logger
-  $Logger.info("ERROR: Export failed!")
-  $Logger.info($_.Exception.Message)
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
+  $Logger = Get-Logger
+  $Logger.Info("ERROR: Export failed!")
+  $Logger.Info($_.Exception.Message)
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
-    $Logger = Get-logger
-    $logger.info("Stack Trace:")
-    $logger.info($_.ScriptStackTrace )
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    $Logger = Get-Logger
+    $Logger.Info("Stack Trace:")
+    $Logger.Info($_.ScriptStackTrace)
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }

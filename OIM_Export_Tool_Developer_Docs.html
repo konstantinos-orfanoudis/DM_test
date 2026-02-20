@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OIM Export Tool — Developer Documentation</title>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --accent:    #58a6ff;
+    --accent2:   #3fb950;
+    --warn:      #d29922;
+    --danger:    #f85149;
+    --text:      #c9d1d9;
+    --muted:     #8b949e;
+    --code-bg:   #1f2937;
+    --tag-blue:  #0c2d6b;
+    --tag-green: #0d3724;
+    --tag-red:   #3d1515;
+    --tag-gold:  #3d2c00;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  /* ─── Layout ─── */
+  .layout { display: flex; min-height: 100vh; }
+  nav {
+    width: 270px;
+    min-width: 270px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  main {
+    flex: 1;
+    padding: 40px 56px 80px;
+    max-width: 960px;
+    overflow-x: hidden;
+  }
+
+  /* ─── Nav ─── */
+  .nav-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    padding: 0 20px 8px;
+    margin-top: 16px;
+  }
+  nav a {
+    display: block;
+    padding: 5px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+  nav a:hover, nav a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(88,166,255,.07);
+  }
+  nav a.indent { padding-left: 34px; }
+
+  /* ─── Typography ─── */
+  h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  h2 {
+    font-size: 1.4rem; font-weight: 700; color: #fff;
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent); margin: 28px 0 10px; }
+  h4 { font-size: .9rem; font-weight: 700; color: var(--warn); margin: 18px 0 6px; }
+  p  { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 12px 22px; }
+  li { margin-bottom: 4px; }
+  strong { color: #e6edf3; }
+  code {
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #79c0ff;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ─── Subtitle ─── */
+  .subtitle { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+
+  /* ─── Badges ─── */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .badge-blue  { background: var(--tag-blue);  color: #79c0ff; }
+  .badge-green { background: var(--tag-green); color: #56d364; }
+  .badge-red   { background: var(--tag-red);   color: #ff7b72; }
+  .badge-gold  { background: var(--tag-gold);  color: #e3b341; }
+
+  /* ─── Code blocks ─── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; color: #c9d1d9; }
+  .kw  { color: #ff7b72; }
+  .fn  { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .cmt { color: #8b949e; font-style: italic; }
+  .num { color: #f2cc60; }
+  .var { color: #79c0ff; }
+  .typ { color: #ffa657; }
+
+  /* ─── Tables ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 13px;
+  }
+  th {
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ─── Info / Warning / Note boxes ─── */
+  .box {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    border-left: 4px solid;
+    font-size: 13px;
+  }
+  .box-info    { background: #0d1e36; border-color: var(--accent);  color: #aecbfa; }
+  .box-warn    { background: #1e1300; border-color: var(--warn);    color: #f0d080; }
+  .box-danger  { background: #1e0000; border-color: var(--danger);  color: #f9a8a8; }
+  .box-success { background: #002200; border-color: var(--accent2); color: #80e080; }
+  .box-title   { font-weight: 700; margin-bottom: 4px; }
+
+  /* ─── File tree ─── */
+  .tree {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+  }
+  .tree .dir  { color: var(--accent); font-weight: 600; }
+  .tree .file { color: var(--text); }
+  .tree .note { color: var(--muted); font-style: italic; }
+
+  /* ─── Pipeline ─── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .pipe-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pipe-box.blue  { border-color: #388bfd; color: #79c0ff; }
+  .pipe-box.green { border-color: #2ea043; color: #56d364; }
+  .pipe-box.gold  { border-color: #bb8009; color: #e3b341; }
+  .pipe-box.red   { border-color: #da3633; color: #ff7b72; }
+  .arrow { color: var(--muted); font-size: 16px; }
+
+  /* ─── Function signature ─── */
+  .fn-sig {
+    background: #111827;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0 8px;
+    font-family: "Cascadia Code", monospace;
+    font-size: 12.5px;
+  }
+  .fn-name { color: #d2a8ff; font-weight: 700; }
+  .fn-param { color: #ffa657; }
+  .fn-type  { color: #ff7b72; }
+
+  /* ─── Two-col ─── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  @media (max-width: 780px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ─── Top bar ─── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar strong { color: var(--text); }
+  .version-badge {
+    background: var(--tag-blue);
+    color: #79c0ff;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  /* ─── Scroll margin ─── */
+  section { scroll-margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ══════════════════════  SIDEBAR  ══════════════════════ -->
+<nav>
+  <div style="padding:0 20px 16px; border-bottom:1px solid var(--border); margin-bottom:8px;">
+    <div style="color:#fff; font-weight:700; font-size:14px;">OIM Export Tool</div>
+    <div style="color:var(--muted); font-size:11px;">Developer Documentation</div>
+  </div>
+
+  <div class="nav-title">Overview</div>
+  <a href="#overview">What This Tool Does</a>
+  <a href="#structure">Repository Structure</a>
+  <a href="#dataflow">Data Flow Pipeline</a>
+  <a href="#prerequisites">Prerequisites</a>
+
+  <div class="nav-title">Configuration</div>
+  <a href="#config">config.json Reference</a>
+  <a href="#inputvalidator">InputValidator</a>
+
+  <div class="nav-title">Entry Points</div>
+  <a href="#mainmodule">MainPsModule.ps1</a>
+  <a href="#extractzip">ExtractXMLFromZip</a>
+  <a href="#login">PsModuleLogin</a>
+  <a href="#logger">NLogger</a>
+  <a href="#passwords">PasswordEncryption</a>
+
+  <div class="nav-title">Common Modules</div>
+  <a href="#xdatecheck">XDateCheck</a>
+  <a class="indent" href="#xdate-globals">Global State</a>
+  <a class="indent" href="#xdate-functions">Functions</a>
+  <a class="indent" href="#xdate-flow">Stale Check Flow</a>
+
+  <div class="nav-title">DBObjects Pipeline</div>
+  <a href="#dbobj-parser">XmlParser</a>
+  <a class="indent" href="#dbobj-case1">Case 1: DbObject</a>
+  <a class="indent" href="#dbobj-case2">Case 2: Diff</a>
+  <a href="#dbobj-filter">FilterColumns</a>
+  <a href="#dbobj-main">Main Module</a>
+  <a href="#dbobj-xmlexp">XmlExporter</a>
+  <a href="#dbobj-csvexp">CsvExporter</a>
+  <a href="#tablenamemap">TableNameMapCSV</a>
+
+  <div class="nav-title">Other Module Pipelines</div>
+  <a href="#process">Process</a>
+  <a href="#templates">Templates</a>
+  <a href="#scripts">Scripts</a>
+  <a href="#tablescripts">TableScripts</a>
+  <a href="#formatscripts">FormatScripts</a>
+  <a href="#canseescripts">CanSee/CanEdit Scripts</a>
+
+  <div class="nav-title">Data Structures</div>
+  <a href="#ds-dbobject">DbObject</a>
+  <a href="#ds-column">Column</a>
+  <a href="#ds-xmlfile">XmlFileEntry</a>
+  <a href="#ds-config">Config Object</a>
+
+  <div class="nav-title">Developer Guides</div>
+  <a href="#add-module">Adding a New Module</a>
+  <a href="#error-patterns">Error Handling Patterns</a>
+  <a href="#globalstate">Global State Guide</a>
+  <a href="#sql-pattern">SQL Access Pattern</a>
+</nav>
+
+<!-- ══════════════════════  MAIN  ══════════════════════ -->
+<main>
+
+<!-- top bar -->
+<div class="topbar" style="margin:-40px -56px 40px; border-radius:0;">
+  <span class="version-badge">v1.0</span>
+  <strong>OIM Export Tool</strong>
+  <span>PowerShell · One Identity Manager</span>
+  <span style="margin-left:auto;">Target: PS 5.1+ · Windows · OIM 8.x</span>
+</div>
+
+<!-- ══════ OVERVIEW ══════ -->
+<section id="overview">
+<h1>OIM Export Tool</h1>
+<p class="subtitle">Developer reference for every module, function, data structure, and algorithm in the codebase.</p>
+
+<p>The OIM Export Tool is a PowerShell automation suite that reads <strong>One Identity Manager (OIM) Transport ZIP files</strong>, queries the live OIM database to enrich and validate the extracted objects, and writes the results to structured output files that can be imported by the Deployment Manager.</p>
+
+<p>It handles eight object types: <strong>DBObjects, Processes, Templates, Scripts, TableScripts, FormatScripts, CanSee Scripts, CanEdit Scripts</strong>. Each type has its own parser, exporter, and orchestrating main module, all built on a shared common layer.</p>
+</section>
+
+<!-- ══════ STRUCTURE ══════ -->
+<section id="structure">
+<h2>Repository Structure</h2>
+<div class="tree">
+<span class="dir">Source Code/</span><br>
+├── <span class="file">MainPsModule.ps1</span>       <span class="note">── entry point; orchestrates all modules per ZIP file</span><br>
+├── <span class="file">InputValidator.psm1</span>    <span class="note">── reads config.json, merges CLI args, returns config object</span><br>
+├── <span class="file">NLogger.psm1</span>           <span class="note">── NLog wrapper; exposes Get-Logger()</span><br>
+├── <span class="file">PasswordEncryption.psm1</span><span class="note">── DPAPI encrypt/decrypt helpers</span><br>
+├── <span class="file">Encrypt-Password.ps1</span>  <span class="note">── standalone script to encrypt a password for config.json</span><br>
+├── <span class="file">config.json</span>            <span class="note">── runtime configuration (paths, flags, optional features)</span><br>
+│<br>
+├── <span class="dir">Modules/</span><br>
+│   ├── <span class="dir">Common/</span><br>
+│   │   ├── <span class="file">XDateCheck.psm1</span>          <span class="note">── freshness check, WinForms popup, report mode</span><br>
+│   │   ├── <span class="file">PsModuleLogin.psm1</span>       <span class="note">── Invoke-QDeploy session setup</span><br>
+│   │   └── <span class="file">ExtractXMLFromZip.psm1</span>   <span class="note">── ZIP extraction, TagTransport path discovery</span><br>
+│   │<br>
+│   ├── <span class="dir">DBObjects/</span>                    <span class="note">── full DbObject pipeline (most complex)</span><br>
+│   │   ├── <span class="file">DBObjects_XmlParser.psm1</span><br>
+│   │   ├── <span class="file">DBObjects_FilterColumnsPsModule.psm1</span><br>
+│   │   ├── <span class="file">DBObjects_XmlExporter.psm1</span><br>
+│   │   ├── <span class="file">DBObjects_CsvExporter.psm1</span><br>
+│   │   └── <span class="file">DBObjects_Main_PsModule.psm1</span><br>
+│   │<br>
+│   ├── <span class="dir">Process/</span><br>
+│   │   ├── <span class="file">Process_XmlParser.psm1</span><br>
+│   │   ├── <span class="file">Export-Process.psm1</span><br>
+│   │   └── <span class="file">Process_Main_PsModule.psm1</span><br>
+│   │<br>
+│   ├── <span class="dir">Templates/</span><br>
+│   │   ├── <span class="file">Templates_XmlParser.psm1</span><br>
+│   │   ├── <span class="file">Templates_Exporter_PsModule.psm1</span><br>
+│   │   └── <span class="file">Templates_Main_PsModule.psm1</span><br>
+│   │<br>
+│   ├── <span class="dir">Scripts/</span>              <span class="note">── DialogScript objects</span><br>
+│   ├── <span class="dir">TableScripts/</span>         <span class="note">── DialogTable script columns</span><br>
+│   ├── <span class="dir">FormatScripts/</span>        <span class="note">── DialogColumn format scripts</span><br>
+│   ├── <span class="dir">CanSeeScripts/</span>        <span class="note">── DialogColumn CanSee scripts</span><br>
+│   └── <span class="dir">CanEditScripts/</span>       <span class="note">── DialogColumn CanEdit scripts</span><br>
+</div>
+
+<p>All eight module families follow the same three-file pattern: <code>*_XmlParser.psm1</code> → <code>*_Exporter_PsModule.psm1</code> → <code>*_Main_PsModule.psm1</code>.</p>
+</section>
+
+<!-- ══════ DATA FLOW ══════ -->
+<section id="dataflow">
+<h2>Data Flow Pipeline</h2>
+
+<div class="pipeline">
+  <div class="pipe-box blue">ZIP file</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box blue">ExtractXMLFromZip</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box blue">TagData.xml files</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box green">InputValidator<br><small>config merge</small></div>
+  <div class="arrow">→</div>
+  <div class="pipe-box green">PsModuleLogin<br><small>OIM session</small></div>
+</div>
+<div class="pipeline">
+  <div class="pipe-box gold">XmlParser<br><small>parse objects</small></div>
+  <div class="arrow">→</div>
+  <div class="pipe-box gold">XDateCheck<br><small>freshness</small></div>
+  <div class="arrow">→</div>
+  <div class="pipe-box gold">FK Enrich<br><small>DB metadata</small></div>
+  <div class="arrow">→</div>
+  <div class="pipe-box gold">Column Filter<br><small>permissions</small></div>
+  <div class="arrow">→</div>
+  <div class="pipe-box green">Exporter<br><small>write files</small></div>
+</div>
+
+<p>The DBObjects pipeline has five explicit steps (numbered 1–5 in the main module output). All other module pipelines have three steps (parse → login → export).</p>
+
+<h3>Execution Sequence in MainPsModule.ps1</h3>
+<pre><code><span class="cmt"># 1. Extract XML files from the ZIP</span>
+<span class="var">$xmlFiles</span> = Resolve-TagDataXmlFromZip -ZipPath <span class="var">$ZipPath</span>
+
+<span class="cmt"># 2. Load and merge configuration</span>
+<span class="var">$config</span> = InputValidator @validatorParams
+<span class="var">$global</span>:XDateCheck_ReportOnDenial      = [bool]<span class="var">$config</span>.ReportOnDenial
+<span class="var">$global</span>:XDateCheck_StaleAbortTriggered = <span class="num">$false</span>
+
+<span class="cmt"># 3. For each extracted TagData.xml file:</span>
+<span class="kw">foreach</span> (<span class="var">$xmlFile</span> in <span class="var">$xmlFiles</span>) {
+    <span class="var">$global</span>:XDateCheck_StaleAbortTriggered = <span class="num">$false</span>   <span class="cmt"># per-file reset</span>
+    DBObjects_Main_PsModule  @commonParams
+    Process_Main_PsModule    @commonParams
+    Templates_Main_PsModule  @commonParams
+    Scripts_Main_PsModule    @commonParams
+    TableScripts_Main_PsModule  @commonParams
+    FormatScripts_Main_PsModule @commonParams
+    CanSeeScripts_Main_PsModule @commonParams
+    CanEditScripts_Main_PsModule @commonParams
+}</code></pre>
+</section>
+
+<!-- ══════ PREREQUISITES ══════ -->
+<section id="prerequisites">
+<h2>Prerequisites</h2>
+<table>
+  <tr><th>Dependency</th><th>Purpose</th><th>Where</th></tr>
+  <tr><td><code>PowerShell 5.1+</code></td><td>Runtime</td><td>Windows built-in</td></tr>
+  <tr><td><code>Intragen.Deployment.OneIdentity.dll</code></td><td>OIM DM API (Invoke-QDeploy, Get-QSession, Open-QSql, Find-QSql, Get-QObject)</td><td>Configured in <code>DMDll</code></td></tr>
+  <tr><td><code>NLog.dll</code></td><td>Structured logging</td><td>Configured in <code>NLoggerDLL</code></td></tr>
+  <tr><td><code>System.Windows.Forms</code></td><td>Stale-object popup dialog</td><td>GAC (Windows standard)</td></tr>
+  <tr><td>OIM config directory</td><td>Connection credentials for Invoke-QDeploy</td><td>Configured in <code>DMConfigDir</code></td></tr>
+</table>
+</section>
+
+<!-- ══════ CONFIG ══════ -->
+<section id="config">
+<h2>config.json Reference</h2>
+<p>The file lives at <code>Source Code\config.json</code> and is loaded at startup by both <code>NLogger.psm1</code> and <code>InputValidator.psm1</code>. CLI parameters always override config file values.</p>
+
+<table>
+  <tr><th>Key</th><th>Type</th><th>Required</th><th>Description</th></tr>
+  <tr><td><code>DMConfigDir</code></td><td>string</td><td><span class="badge badge-red">required</span></td><td>Path to the OIM Deployment Manager configuration directory.</td></tr>
+  <tr><td><code>OutPath</code></td><td>string</td><td><span class="badge badge-gold">recommended</span></td><td>Root output directory. Defaults to current working directory.</td></tr>
+  <tr><td><code>LogPath</code></td><td>string</td><td>optional</td><td>Directory for NLog files. Defaults to <code>OutPath\Logs</code>.</td></tr>
+  <tr><td><code>DMDll</code></td><td>string</td><td><span class="badge badge-red">required</span></td><td>Full path to the Deployment Manager DLL.</td></tr>
+  <tr><td><code>NLoggerDLL</code></td><td>string</td><td><span class="badge badge-red">required</span></td><td>Full path to NLog.dll.</td></tr>
+  <tr><td><code>DMPassword</code></td><td>string</td><td>optional</td><td>Plain text or <code>[E]…</code> encrypted password. Leave blank to use the <code>-DMPassword</code> interactive prompt switch.</td></tr>
+  <tr><td><code>IncludeEmptyValues</code></td><td>bool</td><td>optional</td><td>When <code>true</code>, columns with empty/null values are included in output. Default: <code>false</code>.</td></tr>
+  <tr><td><code>PreviewXml</code></td><td>bool</td><td>optional</td><td>When <code>true</code>, prints generated XML to the console and log. Default: <code>false</code>.</td></tr>
+  <tr><td><code>CSVMode</code></td><td>bool</td><td>optional</td><td>When <code>true</code>, DBObjects exports per-table <code>Template_*.xml</code> schema + <code>NNN-TableName.csv</code> data files instead of a combined XML. Default: <code>false</code>.</td></tr>
+  <tr><td><code>ExcludedColumnsCSV</code></td><td>string</td><td>optional</td><td>Path to a CSV with columns <code>TableName,ColumnName</code>. Matching columns are removed even if OIM permissions allow them.</td></tr>
+  <tr><td><code>TableNameMapCSV</code></td><td>string</td><td>optional</td><td>Path to a CSV with columns <code>TableName,TemplateName</code>. In CSV mode, the schema XML is named <code>Template_&lt;TemplateName&gt;.xml</code> instead of <code>Template_&lt;TableName&gt;.xml</code>. Data CSVs always use the original name.</td></tr>
+  <tr><td><code>ReportOnDenial</code></td><td>bool</td><td>optional</td><td>When <code>true</code> (default), clicking Abort on the stale-object popup activates report mode: all objects are collected but no files are written; a summary is printed instead. When <code>false</code>, only the stale object is skipped.</td></tr>
+</table>
+
+<div class="box box-info">
+  <div class="box-title">CLI Override Priority</div>
+  Switches passed on the command line to <code>MainPsModule.ps1</code> always win over <code>config.json</code> values.
+  String parameters (paths) also override the config when explicitly provided.
+</div>
+</section>
+
+<!-- ══════ INPUTVALIDATOR ══════ -->
+<section id="inputvalidator">
+<h2>InputValidator.psm1</h2>
+<p>Located at <code>Source Code\InputValidator.psm1</code>. Exported functions: <code>InputValidator</code>, <code>Get-ConfigPropValue</code>.</p>
+
+<h3>InputValidator</h3>
+<p>Merges CLI parameters with <code>config.json</code> values, validates required fields, creates output/log directories, resolves paths, and returns a single <code>[pscustomobject]</code>.</p>
+
+<div class="fn-sig">
+<span class="fn-name">InputValidator</span><br>
+&nbsp;&nbsp;[<span class="fn-type">string</span>] <span class="fn-param">$DMConfigDir</span>, <span class="fn-param">$OutPath</span>, <span class="fn-param">$LogPath</span>, <span class="fn-param">$DMDll</span><br>
+&nbsp;&nbsp;[<span class="fn-type">switch</span>] <span class="fn-param">$IncludeEmptyValues</span>, <span class="fn-param">$PreviewXml</span>, <span class="fn-param">$CSVMode</span><br>
+→ <span class="fn-type">[pscustomobject]</span> — see <a href="#ds-config">Config Object</a>
+</div>
+
+<h4>Merge Logic</h4>
+<ul>
+  <li>For string parameters: CLI value is used if <code>$PSBoundParameters.ContainsKey(…)</code>; otherwise the config.json value.</li>
+  <li>For switch parameters: CLI wins; otherwise the config boolean; otherwise <code>$false</code>.</li>
+  <li><code>DMPassword</code> is always read from config.json here (interactive prompt is handled in MainPsModule.ps1).</li>
+  <li>Only <code>DMConfigDir</code> is a hard required field — throws if missing from both sources.</li>
+</ul>
+
+<h3>Get-ConfigPropValue</h3>
+<p>Safe property reader: returns <code>$null</code> if the config object is null or the property does not exist. Used throughout to avoid exceptions on optional keys.</p>
+<pre><code><span class="fn">Get-ConfigPropValue</span> -Config <span class="var">$config</span> -Name <span class="str">"TableNameMapCSV"</span></code></pre>
+</section>
+
+<!-- ══════ MAINMODULE ══════ -->
+<section id="mainmodule">
+<h2>MainPsModule.ps1</h2>
+<p>The sole script entry point. Run with:</p>
+<pre><code>.\MainPsModule.ps1 -ZipPath <span class="str">"C:\transport.zip"</span>
+.\MainPsModule.ps1 -ZipPath <span class="str">"C:\transport.zip"</span> -DMPassword   <span class="cmt"># prompts for password</span>
+.\MainPsModule.ps1 -ZipPath <span class="str">"C:\transport.zip"</span> -CSVMode       <span class="cmt"># override config</span></code></pre>
+
+<h4>Responsibilities</h4>
+<ul>
+  <li>Imports all top-level and common modules.</li>
+  <li>Calls <code>Resolve-TagDataXmlFromZip</code> to get the list of <code>TagData.xml</code> paths.</li>
+  <li>Calls <code>InputValidator</code> and initialises XDateCheck globals from the result.</li>
+  <li>Handles the interactive password prompt when <code>-DMPassword</code> switch is passed.</li>
+  <li>Iterates over each extracted XML file, resets <code>$global:XDateCheck_StaleAbortTriggered = $false</code> at the top of every iteration.</li>
+  <li>Builds <code>$commonParams</code> hashtable and splatted-calls all 8 module main functions.</li>
+  <li>Cleans up temp directories in the <code>finally</code> block.</li>
+</ul>
+
+<h4>Output Path Logic</h4>
+<pre><code><span class="var">$cleanChildDir</span> = <span class="var">$xmlFile</span>.ChildDir -replace <span class="str">'^\d+_'</span>, <span class="str">''</span>
+<span class="var">$FinalPath</span>    = <span class="var">$config</span>.OutPath + <span class="str">"\"</span> + <span class="var">$xmlFile</span>.TranspName + <span class="str">"\"</span> + <span class="var">$cleanChildDir</span></code></pre>
+<p>Each transport ZIP creates a subdirectory named after the ZIP file, and within it one subdirectory per TagTransport child directory (with leading numeric prefix stripped).</p>
+</section>
+
+<!-- ══════ EXTRACTZIP ══════ -->
+<section id="extractzip">
+<h2>ExtractXMLFromZip.psm1</h2>
+<p>Exported function: <code>Resolve-TagDataXmlFromZip</code></p>
+
+<div class="fn-sig">
+<span class="fn-name">Resolve-TagDataXmlFromZip</span> -ZipPath <span class="fn-param">[string]</span><br>
+→ <span class="fn-type">ArrayList</span> of <a href="#ds-xmlfile">XmlFileEntry</a> objects
+</div>
+
+<h4>Algorithm</h4>
+<ol>
+  <li>Validates the path and <code>.zip</code> extension.</li>
+  <li>Creates a unique temp directory: <code>$env:TEMP\TagTransport_&lt;GUID&gt;</code>.</li>
+  <li>Calls <code>Expand-Archive</code> into the temp dir.</li>
+  <li>Recursively searches for a directory named <strong>exactly</strong> <code>TagTransport</code>.</li>
+  <li>Gets only the <strong>immediate</strong> child directories of <code>TagTransport</code>.</li>
+  <li>For each child, looks for a file named <strong>exactly</strong> <code>TagData.xml</code> (not recursive).</li>
+  <li>Returns one entry per found file. If nothing is found at any step, throws a descriptive error.</li>
+  <li>On error, deletes the temp directory before re-throwing.</li>
+</ol>
+
+<div class="box box-warn">
+  <div class="box-title">Temp directory cleanup</div>
+  The temp directory is NOT cleaned up on success by this function — it is cleaned up in the <code>finally</code> block of <code>MainPsModule.ps1</code> using <code>$xmlFile.TempDir</code>.
+</div>
+</section>
+
+<!-- ══════ LOGIN ══════ -->
+<section id="login">
+<h2>PsModuleLogin.psm1</h2>
+<p>Exported function: <code>Connect-OimPSModule</code></p>
+
+<div class="fn-sig">
+<span class="fn-name">Connect-OimPSModule</span><br>
+&nbsp;&nbsp;-DMConfigDir <span class="fn-type">[string]</span><br>
+&nbsp;&nbsp;-DMDll       <span class="fn-type">[string]</span><br>
+&nbsp;&nbsp;-OutPath     <span class="fn-type">[string]</span><br>
+&nbsp;&nbsp;-DMPassword  <span class="fn-type">[string]</span> <em>(optional)</em><br>
+→ OIM Session object from <code>Get-QSession -default</code>
+</div>
+
+<h4>Password Handling</h4>
+<ul>
+  <li>If <code>$DMPassword</code> starts with <code>[E]</code> → imports <code>PasswordEncryption.psm1</code> and calls <code>ConvertFrom-EncryptedBlock</code> (Windows DPAPI; machine+user-specific).</li>
+  <li>If plain text → logs a warning to consider encrypting.</li>
+  <li>If empty → calls <code>Invoke-QDeploy -Console -DeploymentPath $DMConfigDir</code> with no password.</li>
+</ul>
+
+<h4>DM API Calls Made</h4>
+<table>
+  <tr><th>Call</th><th>Purpose</th></tr>
+  <tr><td><code>Import-Module $DMDll</code></td><td>Load the Deployment Manager PowerShell module</td></tr>
+  <tr><td><code>Invoke-QDeploy -Console -DeploymentPath …</code></td><td>Establish the OIM connection</td></tr>
+  <tr><td><code>Get-QSession -default</code></td><td>Retrieve the authenticated session object</td></tr>
+</table>
+</section>
+
+<!-- ══════ LOGGER ══════ -->
+<section id="logger">
+<h2>NLogger.psm1</h2>
+<p>Wraps NLog for structured file + console logging. Exported as a <strong>global</strong> function: <code>Get-Logger</code>.</p>
+
+<h4>Key Behaviour</h4>
+<ul>
+  <li>Reads <code>NLoggerDLL</code> and <code>LogPath</code> from <code>config.json</code> on every call — no cached state.</li>
+  <li>Log file path: <code>$LogPath\ultimo_log.log</code>. Archives daily, retains 7 rotations.</li>
+  <li>Log level is hard-coded as <code>Trace</code> (includes all levels).</li>
+  <li>Layout: <code>${longdate} [${level}] (${processid}) CallerFunctionName | message</code></li>
+  <li>Because parsers operate inside <code>-Force</code> re-imported modules, each module calls <code>$Logger = Get-Logger</code> at the top of its function body rather than once at module scope.</li>
+</ul>
+</section>
+
+<!-- ══════ PASSWORDS ══════ -->
+<section id="passwords">
+<h2>PasswordEncryption.psm1</h2>
+<p>DPAPI-backed encrypt/decrypt pair. Encrypted passwords are bound to the Windows user account and machine.</p>
+
+<table>
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>ConvertTo-EncryptedBlock 'password'</code></td><td>Returns <code>[E]&lt;base64 blob&gt;</code>. Use <code>Encrypt-Password.ps1</code> as a convenience wrapper.</td></tr>
+  <tr><td><code>ConvertFrom-EncryptedBlock '[E]…'</code></td><td>Strips the <code>[E]</code> prefix, decrypts via <code>ConvertTo-SecureString</code>, returns plain text.</td></tr>
+</table>
+</section>
+
+<!-- ══════ XDATECHECK ══════ -->
+<section id="xdatecheck">
+<h2>XDateCheck.psm1 <span class="badge badge-blue">Common</span></h2>
+<p>Located at <code>Modules\Common\XDateCheck.psm1</code>. Imported by every parser module with <code>Import-Module … -Force</code>.</p>
+
+<section id="xdate-globals">
+<h3>Global State</h3>
+<p>Two <code>$global:</code> variables survive <code>Import-Module -Force</code> re-imports because they are initialised with null-guards:</p>
+
+<pre><code><span class="kw">if</span> (<span class="var">$null</span> -eq <span class="var">$global</span>:XDateCheck_ReportOnDenial)      { <span class="var">$global</span>:XDateCheck_ReportOnDenial      = <span class="num">$true</span>  }
+<span class="kw">if</span> (<span class="var">$null</span> -eq <span class="var">$global</span>:XDateCheck_StaleAbortTriggered) { <span class="var">$global</span>:XDateCheck_StaleAbortTriggered = <span class="num">$false</span> }</code></pre>
+
+<table>
+  <tr><th>Variable</th><th>Set by</th><th>Read by</th><th>Meaning</th></tr>
+  <tr><td><code>$global:XDateCheck_ReportOnDenial</code></td><td>MainPsModule.ps1 after InputValidator</td><td><code>Confirm-ExportIfStale</code></td><td>When <code>$true</code>, Abort click enters report mode instead of skipping the object.</td></tr>
+  <tr><td><code>$global:XDateCheck_StaleAbortTriggered</code></td><td>MainPsModule.ps1 (reset per file) · <code>Confirm-ExportIfStale</code> (set on Abort)</td><td>All parsers · all Main modules</td><td>When <code>$true</code>, all subsequent freshness checks are bypassed and all Main modules skip writing files.</td></tr>
+</table>
+</section>
+
+<section id="xdate-functions">
+<h3>Exported Functions</h3>
+
+<h4>Set-XDateCheckConfig</h4>
+<p>Convenience setter — writes <code>$global:XDateCheck_ReportOnDenial</code>. Rarely called directly (MainPsModule writes the global directly for clarity).</p>
+
+<h4>Reset-StaleAbortFlag</h4>
+<p>Sets <code>$global:XDateCheck_StaleAbortTriggered = $false</code>. Called by MainPsModule.ps1 at the top of the per-file loop.</p>
+
+<h4>Get-StaleAbortTriggered</h4>
+<p>Returns the current value of <code>$global:XDateCheck_StaleAbortTriggered</code>. Rarely used directly; Main modules read the global variable instead.</p>
+
+<h4>Get-XDateUpdatedFromBlock</h4>
+<div class="fn-sig">
+<span class="fn-name">Get-XDateUpdatedFromBlock</span> -Block <span class="fn-type">[string]</span><br>
+→ <span class="fn-type">[string]</span> date value, or <span class="fn-type">$null</span>
+</div>
+<p>Uses two regex patterns in priority order:</p>
+<ol>
+  <li><strong>Op/diff format</strong> (highest priority): <code>&lt;Op Columnname="XDateUpdated"&gt;…&lt;Value&gt;DATE&lt;/Value&gt;</code> — found in decoded ChangeContent diffs; represents the <em>target object's</em> date.</li>
+  <li><strong>Column format</strong> (fallback): <code>&lt;Column Name="XDateUpdated"&gt;…&lt;Value&gt;DATE&lt;/Value&gt;</code> — found in full-row DbObject snapshots.</li>
+</ol>
+<div class="box box-warn">
+  <div class="box-title">Why Op is tried first</div>
+  The outer QBMTaggedChange wrapper row also has a <code>&lt;Column Name="XDateUpdated"&gt;</code> element. If Column-format were tried first, we'd extract the wrapper's date instead of the target object's date. Op-format only appears inside decoded ChangeContent, so it uniquely identifies the target object's date.
+</div>
+
+<h4>Confirm-ExportIfStale</h4>
+<div class="fn-sig">
+<span class="fn-name">Confirm-ExportIfStale</span><br>
+&nbsp;&nbsp;-TableName             <span class="fn-type">[string]</span> <em>Mandatory</em><br>
+&nbsp;&nbsp;-WhereClause           <span class="fn-type">[string]</span> <em>Mandatory</em><br>
+&nbsp;&nbsp;-TransportXDateUpdated <span class="fn-type">[string]</span> <em>optional, default ""</em><br>
+&nbsp;&nbsp;-ObjectDescription     <span class="fn-type">[string]</span> <em>optional</em><br>
+→ <span class="fn-type">[bool]</span>: <code>$true</code> = include object; <code>$false</code> = skip object
+</div>
+</section>
+
+<section id="xdate-flow">
+<h3>Stale Check Decision Flow</h3>
+<pre><code>Confirm-ExportIfStale called
+│
+├─ StaleAbortTriggered == $true? ──► return $true  (report mode: collect everything)
+│
+├─ TransportXDateUpdated is empty? ──► return $true  (no date to compare)
+│
+├─ Parse TransportXDateUpdated
+│   └─ parse fails? ──► WARN + return $true
+│
+├─ SELECT XDateUpdated FROM TableName WHERE WhereClause
+│   └─ query fails or returns nothing? ──► WARN + return $true
+│
+├─ dbDate ≤ transportDate? ──► return $true  (fresh: DB not newer than transport)
+│
+└─ dbDate > transportDate → STALE → Show popup
+    │
+    ├─ User clicks "Export" ──► return $true
+    │
+    └─ User clicks "Abort"
+        ├─ ReportOnDenial == $true?
+        │   ├─ Set StaleAbortTriggered = $true
+        │   └─ return $true  (still collect for report)
+        │
+        └─ ReportOnDenial == $false?
+            └─ return $false  (skip this object)</code></pre>
+</section>
+</section>
+
+<!-- ══════ DBOBJECTS PARSER ══════ -->
+<section id="dbobj-parser">
+<h2>DBObjects_XmlParser.psm1</h2>
+
+<h3>Exported Functions</h3>
+<ul>
+  <li><code>Get-AllDbObjectsFromChangeContent</code> — main parse entry point</li>
+  <li><code>Get-ForeignKeyMetadataPsModule</code> — FK discovery from OIM session metadata</li>
+  <li><code>Enrich-DbObjectsWithFkMetadata</code> — applies FK metadata to parsed objects</li>
+  <li><code>Sort-DbObjectsBySortOrder</code> — sorts by the QBMTaggedChange SortOrder column</li>
+</ul>
+
+<h3>Private Helpers</h3>
+<ul>
+  <li><code>Remove-InvalidXmlChars</code> — strips control chars (except TAB/LF/CR) that would break <code>XmlDocument.LoadXml</code>.</li>
+  <li><code>Try-LoadEmbeddedXml</code> — attempts raw parse; if it fails and the text starts with <code>&amp;lt;</code>, decodes once and retries.</li>
+  <li><code>Get-ColumnValue</code> — reads a <code>&lt;Column&gt;</code> node's value from either a <code>&lt;Value&gt;</code> child or the <code>Display</code> attribute.</li>
+</ul>
+
+<section id="dbobj-case1">
+<h3>Case 1 — Full DbObject Snapshot</h3>
+<p>ChangeContent contains <code>&lt;DbObjects&gt;&lt;DbObject&gt;…&lt;/DbObject&gt;&lt;/DbObjects&gt;</code> (or a standalone <code>&lt;DbObject&gt;</code>).</p>
+
+<pre><code><span class="cmt"># Table name from Key/Table[@Name]</span>
+<span class="var">$tableName</span> = <span class="var">$tableNode</span>.GetAttribute(<span class="str">'Name'</span>)
+
+<span class="cmt"># PK name/value from Key/Table/Prop</span>
+<span class="var">$pkName</span>  = <span class="var">$pkPropNode</span>.GetAttribute(<span class="str">'Name'</span>)   <span class="cmt"># array for composite PKs</span>
+<span class="var">$pkValue</span> = <span class="var">$pkPropNode</span>.SelectSingleNode(<span class="str">'./Value'</span>).InnerText
+
+<span class="cmt"># SortOrder from QBMTaggedChange wrapper sibling column</span>
+<span class="var">$sortOrderCol</span> = <span class="var">$changeCol</span>.ParentNode.SelectSingleNode(<span class="str">"./Column[@Name='SortOrder']"</span>)
+
+<span class="cmt"># XDateUpdated for freshness check</span>
+<span class="var">$xDateNode</span>    = <span class="var">$dbo</span>.SelectSingleNode(<span class="str">'./Columns/Column[@Name="XDateUpdated"]/Value'</span>)
+<span class="var">$transportDate</span> = <span class="var">$xDateNode</span>.InnerText
+
+<span class="cmt"># FK column detection: presence of Key/Table child under Column</span>
+<span class="var">$fkTableNode</span> = <span class="var">$col</span>.SelectSingleNode(<span class="str">'./Key/Table'</span>)</code></pre>
+
+<p>Columns are read in parse order. PK columns are always included (not filtered by <code>IncludeEmptyValues</code>). A column can have both <code>IsPrimaryKey = $true</code> and <code>IsForeignKey = $true</code> (e.g. <code>UID_Org</code> on a join table).</p>
+</section>
+
+<section id="dbobj-case2">
+<h3>Case 2 — Diff Payload</h3>
+<p>ChangeContent contains <code>&lt;Diff&gt;…&lt;/Diff&gt;</code>. Table/PK info is in the sibling <code>ObjectKey</code> column as a separate embedded XML: <code>&lt;Key&gt;&lt;T&gt;TableName&lt;/T&gt;&lt;P&gt;PkValue&lt;/P&gt;&lt;/Key&gt;</code>.</p>
+
+<pre><code><span class="cmt"># PK column name requires a DB query</span>
+<span class="var">$wc</span> = <span class="str">"SELECT ColumnName FROM DialogColumn WHERE IsPKMember = 1
+       AND UID_DialogTable IN (
+         SELECT UID_DialogTable FROM DialogTable
+         WHERE TableName = '$tableName'
+         AND TableName NOT IN ('Job','JobChain',…))"</span>
+<span class="var">$pr</span> = Find-QSql <span class="var">$wc</span> -dict
+<span class="var">$pkcolumnName</span> = <span class="var">$pr</span>[<span class="str">"ColumnName"</span>]
+
+<span class="cmt"># XDateUpdated from the Diff Op element</span>
+<span class="var">$xdOp</span> = <span class="var">$diffRoot</span>.SelectSingleNode(<span class="str">'./Op[@Columnname="XDateUpdated"]'</span>)</code></pre>
+
+<div class="box box-warn">
+  <div class="box-title">Case 2 hard abort</div>
+  If the PK column lookup returns nothing, the function immediately returns an empty list (not just skips the current row). This prevents producing output with an invalid/unknown primary key structure.
+</div>
+
+<p>Diff <code>&lt;Op&gt;</code> elements are converted to column entries with <code>IsDiffOp = $true</code>, storing both <code>Value</code> (new) and <code>OldValue</code> (previous).</p>
+</section>
+
+<h3>Get-ForeignKeyMetadataPsModule</h3>
+<p>Uses <code>$session.Connection.Tables[tableName].ForeignKeys.ColumnRelations</code> to discover FK relationships. The <code>ChildColumn</code> and <code>ParentColumn</code> strings are in <code>Table.Column</code> format; the function splits on <code>.</code> to extract names.</p>
+<p>Returns: <code>Hashtable[TableName → Hashtable[ColumnName → {FkTableName, FkColumnName}]]</code></p>
+
+<h3>Enrich-DbObjectsWithFkMetadata</h3>
+<p>Called after parsing to handle FK columns that appear without a <code>&lt;Key/Table&gt;</code> structure in the XML (e.g. when the FK value is empty). Adds <code>IsForeignKey = $true</code>, <code>FkTableName</code>, and <code>FkColumnName</code> to those columns using the metadata map.</p>
+
+<h3>Sort-DbObjectsBySortOrder</h3>
+<p>Sorts by the <code>SortOrder</code> property (ascending). Objects without a valid SortOrder get <code>[long]::MaxValue</code> and sort to the end. Uses PowerShell's <code>Sort-Object</code> with a script block.</p>
+</section>
+
+<!-- ══════ DBOBJECTS FILTER ══════ -->
+<section id="dbobj-filter">
+<h2>DBObjects_FilterColumnsPsModule.psm1</h2>
+
+<h3>Get-ColumnPermissionsPsModule</h3>
+<div class="fn-sig">
+<span class="fn-name">Get-ColumnPermissionsPsModule</span> -Session <span class="fn-type">[object]</span> -Tables <span class="fn-type">[string[]]</span><br>
+→ <span class="fn-type">Hashtable</span>: TableName → <code>List[string]</code> of allowed column names
+</div>
+
+<p>For each table:</p>
+<ol>
+  <li>Calls <code>Find-QSql "SELECT TOP 1 XObjectKey FROM $table"</code> to get one object.</li>
+  <li>Calls <code>Get-QObject $table "XObjectKey" $xobjk</code> to get the full column metadata.</li>
+  <li>Iterates <code>$result.Columns</code> — a column is <em>allowed</em> when <code>canEditDisallowedBy</code> does <strong>not</strong> contain a space (non-empty <code>canEditDisallowedBy</code> means OIM prevents editing).</li>
+  <li>Also reads <code>ExcludedColumnsCSV</code> from config and removes any matching <code>TableName,ColumnName</code> rows.</li>
+</ol>
+
+<h3>Filter-DbObjectsByAllowedColumnsPsModule</h3>
+<p>Iterates every column on every DbObject. <strong>PK columns always pass through</strong> regardless of permission. Non-PK columns pass only if they appear in the allowed set for their table.</p>
+</section>
+
+<!-- ══════ DBOBJECTS MAIN ══════ -->
+<section id="dbobj-main">
+<h2>DBObjects_Main_PsModule.psm1</h2>
+<p>Orchestrates the 5-step DBObjects pipeline:</p>
+
+<table>
+  <tr><th>Step</th><th>Call</th><th>Description</th></tr>
+  <tr><td>1/5</td><td><code>Get-AllDbObjectsFromChangeContent</code></td><td>Parse TagData.xml</td></tr>
+  <tr><td>2/5</td><td><code>Connect-OimPSModule</code></td><td>OIM session</td></tr>
+  <tr><td>2.5/5</td><td><code>Get-ForeignKeyMetadataPsModule</code> + <code>Enrich-DbObjectsWithFkMetadata</code></td><td>FK enrichment</td></tr>
+  <tr><td>2.6/5</td><td><code>Sort-DbObjectsBySortOrder</code></td><td>Sort by SortOrder</td></tr>
+  <tr><td>3/5</td><td><code>Get-ColumnPermissionsPsModule</code></td><td>Permission discovery</td></tr>
+  <tr><td>4/5</td><td><code>Filter-DbObjectsByAllowedColumnsPsModule</code></td><td>Column filtering</td></tr>
+  <tr><td>5/5</td><td><code>Export-ToCsvMode</code> or <code>Export-ToNormalXml</code></td><td>Write output files</td></tr>
+</table>
+
+<p>After parsing (between steps 1 and 2), checks <code>$global:XDateCheck_StaleAbortTriggered</code>. If set, prints the report and returns without writing any files.</p>
+
+<p>Parameters include all <code>$commonParams</code> keys plus <code>$TableNameMapCSV</code> (forwarded to <code>Export-ToCsvMode</code>).</p>
+</section>
+
+<!-- ══════ XML EXPORTER ══════ -->
+<section id="dbobj-xmlexp">
+<h2>DBObjects_XmlExporter.psm1</h2>
+<p>Exported function: <code>Export-ToNormalXml</code></p>
+<p>Produces a single combined XML file: <code>000-DBObjects_&lt;timestamp&gt;.xml</code>.</p>
+
+<h4>Output XML Structure</h4>
+<pre><code><span class="cmt">&lt;!-- namespace: http://www.intragen.com/xsd/XmlObjectSchema --&gt;</span>
+&lt;Objects xmlns="…" xmlns:xsi="…"&gt;
+  &lt;Keys&gt;
+    &lt;TableName&gt;PKColumnName&lt;/TableName&gt;   <span class="cmt">&lt;!-- one per PK part per table --&gt;</span>
+  &lt;/Keys&gt;
+  &lt;TableName&gt;                             <span class="cmt">&lt;!-- one per DbObject --&gt;</span>
+    &lt;ColumnName&gt;value&lt;/ColumnName&gt;       <span class="cmt">&lt;!-- normal column --&gt;</span>
+    &lt;FkColumn&gt;
+      &lt;FkTable&gt;&lt;FkPKColumn&gt;fkValue&lt;/FkPKColumn&gt;&lt;/FkTable&gt;
+    &lt;/FkColumn&gt;                           <span class="cmt">&lt;!-- FK column --&gt;</span>
+  &lt;/TableName&gt;
+&lt;/Objects&gt;</code></pre>
+
+<p>Written with <code>System.Xml.XmlWriter</code> directly to a <code>MemoryStream</code>, then written to disk with <code>[System.IO.File]::WriteAllText</code> using UTF-8 without BOM.</p>
+</section>
+
+<!-- ══════ CSV EXPORTER ══════ -->
+<section id="dbobj-csvexp">
+<h2>DBObjects_CsvExporter.psm1</h2>
+<p>Exported function: <code>Export-ToCsvMode</code></p>
+<p>In CSV mode, produces <strong>two files per table</strong>:</p>
+
+<table>
+  <tr><th>File</th><th>Name Pattern</th><th>Content</th></tr>
+  <tr><td>Schema XML</td><td><code>Template_&lt;displayName&gt;.xml</code></td><td>Column structure with <code>@placeholder@</code> values, FK nesting, <code>&lt;Keys&gt;</code> block. No data rows.</td></tr>
+  <tr><td>Data CSV</td><td><code>NNN-&lt;tableName&gt;.csv</code></td><td>Header row + one data row per DbObject. Values CSV-escaped.</td></tr>
+</table>
+
+<h4>Schema XML Structure (CSV mode)</h4>
+<pre><code>&lt;Objects&gt;
+  &lt;Keys&gt;&lt;TableName&gt;PKColumn&lt;/TableName&gt;&lt;/Keys&gt;
+  &lt;TableName&gt;
+    &lt;PKColumn&gt;@PKColumn@&lt;/PKColumn&gt;
+    &lt;NormalColumn&gt;@NormalColumn@&lt;/NormalColumn&gt;
+    &lt;FkColumn&gt;
+      &lt;FkTable&gt;&lt;FkPKCol&gt;@FkColumn@&lt;/FkPKCol&gt;&lt;/FkTable&gt;
+    &lt;/FkColumn&gt;
+  &lt;/TableName&gt;
+&lt;/Objects&gt;</code></pre>
+<p>Note: no namespace in CSV mode schema files.</p>
+
+<h4>Column Schema Building</h4>
+<p>Column order is determined by the <em>first</em> DbObject seen for each table. Columns from later objects for the same table only add new names (they don't reorder). FK metadata is updated if a later object has it when an earlier one didn't.</p>
+
+<h4>CSV Value Escaping (<code>ConvertTo-CsvValue</code>)</h4>
+<p>If value contains comma, double-quote, or newline → wrap in double-quotes and escape internal quotes as <code>""</code>. Otherwise return raw.</p>
+</section>
+
+<!-- ══════ TABLENAMEMAP ══════ -->
+<section id="tablenamemap">
+<h2>TableNameMapCSV Feature</h2>
+<p>Allows renaming schema XML files in CSV mode without affecting data CSVs or XML content.</p>
+
+<h4>CSV Format</h4>
+<pre><code>TableName,TemplateName
+OrgHasEset,Membership
+PersonInDepartment,DepartmentMember</code></pre>
+
+<h4>How It Works</h4>
+<pre><code><span class="cmt"># In Export-ToCsvMode, build rephrase map from optional CSV:</span>
+<span class="var">$tableNameMap</span> = @{}
+<span class="kw">if</span> (Test-Path -LiteralPath <span class="var">$TableNameMapCsvPath</span>) {
+    Import-Csv -LiteralPath <span class="var">$TableNameMapCsvPath</span> | <span class="kw">ForEach-Object</span> {
+        <span class="var">$tableNameMap</span>[<span class="var">$_</span>.TableName.Trim()] = <span class="var">$_</span>.TemplateName.Trim()
+    }
+}
+
+<span class="cmt"># Per-table inside the loop:</span>
+<span class="var">$displayName</span>  = <span class="kw">if</span> (<span class="var">$tableNameMap</span>.ContainsKey(<span class="var">$tableName</span>)) { <span class="var">$tableNameMap</span>[<span class="var">$tableName</span>] } <span class="kw">else</span> { <span class="var">$tableName</span> }
+<span class="var">$tableXmlPath</span> = Join-Path <span class="var">$OutPath</span> <span class="str">"Template_${displayName}.xml"</span>   <span class="cmt"># ← renamed</span>
+<span class="var">$tableCsvPath</span> = Join-Path <span class="var">$OutPath</span> <span class="str">"$fileName.csv"</span>                  <span class="cmt"># ← always original name</span></code></pre>
+
+<div class="box box-info">
+  XML element names inside the schema file still use <code>$tableName</code> (the real OIM table name). Only the file name changes.
+</div>
+
+<h4>Propagation Path</h4>
+<div class="pipeline">
+  <div class="pipe-box blue">config.json<br>TableNameMapCSV</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box blue">InputValidator<br>returns TableNameMapCSV</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box blue">MainPsModule<br>adds to $commonParams</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box green">DBObjects_Main<br>receives $TableNameMapCSV</div>
+  <div class="arrow">→</div>
+  <div class="pipe-box green">CsvExporter<br>-TableNameMapCsvPath</div>
+</div>
+</section>
+
+<!-- ══════ OTHER MODULES ══════ -->
+<section id="process">
+<h2>Process Module</h2>
+<p>Exports OIM <strong>Processes</strong> (JobChain objects) and their JobRunParameters as VB.NET script files.</p>
+
+<h3>Parser: Process_XmlParser.psm1</h3>
+<p>Two parse paths:</p>
+<ul>
+  <li><strong>Path 1 (ObjectKey)</strong>: ChangeContent does not contain recognisable process markup, but sibling <code>ObjectKey</code> column exists with <code>&lt;Key&gt;&lt;T&gt;JobChain&lt;/T&gt;&lt;P&gt;UID&lt;/P&gt;&lt;/Key&gt;</code>. Looks up <code>Name</code> and <code>UID_DialogTable</code> from the DB. For the freshness check, decodes the ChangeContent inline (3× HtmlDecode) and calls <code>Get-XDateUpdatedFromBlock</code>.</li>
+  <li><strong>Path 2 (ChangeContent)</strong>: Decodes ChangeContent (3× HtmlDecode loop), extracts process UID with regex, queries DB for Name. Calls <code>Get-XDateUpdatedFromBlock</code> on the decoded text.</li>
+</ul>
+<p>Export calls <code>Get-QObject</code> to retrieve the full process object and <code>Export-Process</code> to write it as a VB.NET file.</p>
+</section>
+
+<section id="templates">
+<h2>Templates Module</h2>
+<p>Exports OIM <strong>Display Name Templates</strong> (DialogColumn VB script expressions) as <code>.vb</code> files.</p>
+
+<h3>Parser: Templates_XmlParser.psm1</h3>
+<p>Three-pass extraction from decoded ChangeContent (3× HtmlDecode):</p>
+<ol>
+  <li><strong>Pass 1</strong>: finds <code>UID_DialogColumn</code> values directly in the decoded text via regex patterns.</li>
+  <li><strong>Pass 2</strong>: scans for <code>&lt;T&gt;DialogColumn&lt;/T&gt;&lt;P&gt;UID&lt;/P&gt;</code> keys.</li>
+  <li><strong>Pass 3</strong>: scans for <code>&lt;T&gt;DialogColumnExtended&lt;/T&gt;</code> keys and derives <code>UID_DialogColumn</code>.</li>
+</ol>
+<p>All three passes deduplicate via a <code>HashSet</code>. Each unique UID gets a freshness check via <code>Confirm-ExportIfStale</code> with <code>Get-XDateUpdatedFromBlock</code> on the full decoded text block.</p>
+</section>
+
+<section id="scripts">
+<h2>Scripts Module</h2>
+<p>Exports <strong>DialogScript</strong> objects as <code>.vb</code> files.</p>
+
+<h3>Parser: Scripts_XmlParser.psm1</h3>
+<p>Iterates <code>&lt;DbObject&gt;</code> blocks in the decoded text. For each block, searches for <code>&lt;T&gt;DialogScript&lt;/T&gt;&lt;P&gt;UID&lt;/P&gt;</code> patterns. The block provides the scope for <code>Get-XDateUpdatedFromBlock</code>, giving per-object freshness dates.</p>
+
+<div class="box box-info">
+  <div class="box-title">Why DbObject block iteration was needed</div>
+  The original parser searched the full decoded text, giving no per-block context for extracting the transport XDateUpdated. Refactoring to iterate DbObject blocks provides a <code>$dbText</code> variable scoped to each object.
+</div>
+</section>
+
+<section id="tablescripts">
+<h2>TableScripts Module</h2>
+<p>Exports scripts attached to <strong>DialogTable</strong> rows (FormScript, etc.) as <code>.vb</code> files.</p>
+
+<h3>Parser</h3>
+<p>Iterates <code>&lt;DbObject&gt;</code> blocks, looks for <code>UID_DialogTable</code> references, queries the DB to get the table name and script body. Freshness check on <code>DialogTable</code> table using the UID from the block.</p>
+</section>
+
+<section id="formatscripts">
+<h2>FormatScripts Module</h2>
+<p>Exports <strong>FormatScript</strong> column-level VB.NET scripts as <code>.vb</code> files.</p>
+
+<h3>Parser</h3>
+<p>Iterates <code>&lt;DbObject&gt;</code> blocks, looks for <code>&lt;T&gt;DialogColumn&lt;/T&gt;&lt;P&gt;UID&lt;/P&gt;</code> keys. Freshness check on <code>DialogColumn</code> using <code>UID_DialogColumn = '$k'</code> where clause. The block text provides <code>Get-XDateUpdatedFromBlock</code> scope.</p>
+</section>
+
+<section id="canseescripts">
+<h2>CanSee / CanEdit Scripts Modules</h2>
+<p>Same structure as FormatScripts. Both export column-level VB.NET scripts, targeting the <code>CanSeeExpression</code> / <code>CanEditExpression</code> column respectively.</p>
+<p>Files: <code>CanSeeScripts_XmlParser.psm1</code>, <code>CanEditScripts_XmlParser.psm1</code>. Parsers are structurally identical to FormatScripts_XmlParser.</p>
+</section>
+
+<!-- ══════ DATA STRUCTURES ══════ -->
+<section id="ds-dbobject">
+<h2>Data Structures</h2>
+
+<h3>DbObject <span class="badge badge-green">PSCustomObject</span></h3>
+<table>
+  <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>TableName</code></td><td>string</td><td>OIM table name (e.g. <code>Person</code>, <code>OrgHasEset</code>)</td></tr>
+  <tr><td><code>PkName</code></td><td>string or string[]</td><td>Primary key column name(s). Split by space for composite PKs.</td></tr>
+  <tr><td><code>PkValue</code></td><td>string or string[]</td><td>Primary key value(s). Same split convention.</td></tr>
+  <tr><td><code>SortOrder</code></td><td>long</td><td>From QBMTaggedChange.SortOrder; <code>[long]::MaxValue</code> if absent.</td></tr>
+  <tr><td><code>Columns</code></td><td>List[Column]</td><td>All data columns in parse order (PKs included at original position).</td></tr>
+</table>
+</section>
+
+<section id="ds-column">
+<h3>Column <span class="badge badge-green">PSCustomObject</span></h3>
+<table>
+  <tr><th>Property</th><th>Type</th><th>Always present?</th><th>Description</th></tr>
+  <tr><td><code>Name</code></td><td>string</td><td>Yes</td><td>Column name</td></tr>
+  <tr><td><code>Value</code></td><td>string</td><td>Yes</td><td>Current (new) value</td></tr>
+  <tr><td><code>IsPrimaryKey</code></td><td>bool</td><td>Yes</td><td>Whether this is part of the table's PK</td></tr>
+  <tr><td><code>IsForeignKey</code></td><td>bool</td><td>Yes</td><td>Whether this column is an FK reference</td></tr>
+  <tr><td><code>FkTableName</code></td><td>string</td><td>When IsForeignKey</td><td>Referenced table name</td></tr>
+  <tr><td><code>FkColumnName</code></td><td>string</td><td>When IsForeignKey</td><td>Referenced column name (PK of FK table)</td></tr>
+  <tr><td><code>OldValue</code></td><td>string</td><td>Case 2 only</td><td>Previous value from Diff Op</td></tr>
+  <tr><td><code>IsDiffOp</code></td><td>bool</td><td>Case 2 only</td><td><code>$true</code> for Diff-derived columns</td></tr>
+</table>
+</section>
+
+<section id="ds-xmlfile">
+<h3>XmlFileEntry <span class="badge badge-green">PSCustomObject</span></h3>
+<p>Returned by <code>Resolve-TagDataXmlFromZip</code>.</p>
+<table>
+  <tr><th>Property</th><th>Description</th></tr>
+  <tr><td><code>TempDir</code></td><td>Full path to the temp extraction directory; used for cleanup in <code>finally</code>.</td></tr>
+  <tr><td><code>XmlFilePath</code></td><td>Full path to the <code>TagData.xml</code> file inside the temp dir.</td></tr>
+  <tr><td><code>ChildDir</code></td><td>Name of the TagTransport child directory (e.g. <code>001_SomeContext</code>).</td></tr>
+  <tr><td><code>TranspName</code></td><td>ZIP filename without extension; used to create the per-transport output subdirectory.</td></tr>
+</table>
+</section>
+
+<section id="ds-config">
+<h3>Config Object <span class="badge badge-green">PSCustomObject</span></h3>
+<p>Returned by <code>InputValidator</code>.</p>
+<table>
+  <tr><th>Property</th><th>Type</th><th>Notes</th></tr>
+  <tr><td><code>DMConfigDir</code></td><td>string</td><td>Resolved path (absolute)</td></tr>
+  <tr><td><code>OutPath</code></td><td>string</td><td>Resolved path; directory created if absent</td></tr>
+  <tr><td><code>LogPath</code></td><td>string</td><td>Full path including filename; log directory created</td></tr>
+  <tr><td><code>DMDll</code></td><td>string</td><td>Raw path from config/CLI</td></tr>
+  <tr><td><code>DMPassword</code></td><td>string</td><td>Plain text or <code>[E]…</code> encrypted</td></tr>
+  <tr><td><code>IncludeEmptyValues</code></td><td>bool</td><td></td></tr>
+  <tr><td><code>PreviewXml</code></td><td>bool</td><td></td></tr>
+  <tr><td><code>CSVMode</code></td><td>bool</td><td></td></tr>
+  <tr><td><code>TableNameMapCSV</code></td><td>string</td><td>Path to rephrase CSV; empty string = disabled</td></tr>
+  <tr><td><code>ReportOnDenial</code></td><td>bool</td><td>Default <code>$true</code></td></tr>
+</table>
+</section>
+
+<!-- ══════ DEVELOPER GUIDES ══════ -->
+<section id="add-module">
+<h2>Adding a New Module</h2>
+<p>Follow this checklist to add a new object type (e.g. "RoleScripts"):</p>
+
+<h4>1. Create the three module files</h4>
+<pre><code>Modules/RoleScripts/
+├── RoleScripts_XmlParser.psm1
+├── RoleScripts_Exporter_PsModule.psm1
+└── RoleScripts_Main_PsModule.psm1</code></pre>
+
+<h4>2. Parser template</h4>
+<pre><code>Import-Module <span class="str">"$PSScriptRoot\..\Common\XDateCheck.psm1"</span> -Force
+
+<span class="kw">function</span> <span class="fn">Get-RoleScriptsFromChangeLabel</span> {
+    param([<span class="typ">string</span>]<span class="var">$ZipPath</span>)
+
+    <span class="kw">if</span> (-not (Test-Path -LiteralPath <span class="var">$ZipPath</span>)) { <span class="kw">throw</span> <span class="str">"Not found: $ZipPath"</span> }
+
+    <span class="var">$text</span> = Get-Content -LiteralPath <span class="var">$ZipPath</span> -Raw
+    <span class="cmt"># decode ChangeContent if needed</span>
+    <span class="kw">for</span> (<span class="var">$i</span> = 0; <span class="var">$i</span> -lt 3; <span class="var">$i</span>++) {
+        <span class="var">$text</span> = [System.Net.WebUtility]::HtmlDecode(<span class="var">$text</span>)
+    }
+
+    <span class="var">$results</span> = [System.Collections.Generic.List[object]]::new()
+
+    <span class="kw">foreach</span> (<span class="var">$block</span> in [regex]::Matches(<span class="var">$text</span>, <span class="str">'(?is)&lt;DbObject\b.*?&lt;/DbObject&gt;'</span>)) {
+        <span class="var">$transportDate</span> = <span class="fn">Get-XDateUpdatedFromBlock</span> -Block <span class="var">$block</span>.Value
+        <span class="var">$uid</span> = <span class="cmt"># extract UID from block</span>
+        <span class="var">$allow</span> = <span class="fn">Confirm-ExportIfStale</span> -TableName <span class="str">'RoleScript'</span> `
+                   -WhereClause <span class="str">"UID_RoleScript = '$uid'"</span> `
+                   -TransportXDateUpdated <span class="var">$transportDate</span>
+        <span class="kw">if</span> (-not <span class="var">$allow</span>) { <span class="kw">continue</span> }
+        <span class="var">$results</span>.Add(<span class="var">$uid</span>)
+    }
+
+    <span class="kw">return</span> <span class="var">$results</span>
+}
+
+Export-ModuleMember -Function <span class="str">'Get-RoleScriptsFromChangeLabel'</span></code></pre>
+
+<h4>3. Main module template</h4>
+<pre><code><span class="kw">function</span> <span class="fn">RoleScripts_Main_PsModule</span> {
+    param([<span class="typ">string</span>]<span class="var">$ZipPath</span>, [<span class="typ">string</span>]<span class="var">$OutPath</span>, [<span class="typ">string</span>]<span class="var">$DMConfigDir</span>, ...)
+
+    Import-Module ... -Force
+
+    <span class="var">$objects</span> = <span class="fn">Get-RoleScriptsFromChangeLabel</span> -ZipPath <span class="var">$ZipPath</span>
+
+    <span class="cmt"># Report mode check</span>
+    <span class="kw">if</span> (<span class="var">$global</span>:XDateCheck_StaleAbortTriggered) {
+        Write-Host <span class="str">"[REPORT MODE] Stale abort triggered"</span> -ForegroundColor Yellow
+        <span class="kw">foreach</span> (<span class="var">$o</span> in <span class="var">$objects</span>) { Write-Host <span class="str">"  - $o"</span> }
+        <span class="kw">return</span>
+    }
+
+    <span class="kw">if</span> (<span class="var">$objects</span>.Count -gt 0) {
+        <span class="var">$session</span> = <span class="fn">Connect-OimPSModule</span> ...
+        Write-&lt;Type&gt;AsVbNetFiles -Objects <span class="var">$objects</span> -OutDir ...
+    }
+}</code></pre>
+
+<h4>4. Register in MainPsModule.ps1</h4>
+<pre><code>Import-Module (Join-Path <span class="var">$modulesDir</span> <span class="str">"RoleScripts/RoleScripts_Main_PsModule.psm1"</span>) -Force
+<span class="cmt"># ... inside the foreach loop:</span>
+RoleScripts_Main_PsModule @commonParams</code></pre>
+</section>
+
+<section id="error-patterns">
+<h2>Error Handling Patterns</h2>
+
+<h4>Parser Errors</h4>
+<p>Parsers <code>continue</code> on individual record failures (bad XML, missing nodes). A <code>Write-Warning</code> is logged but processing continues with the next item. The outer <code>try/catch</code> in the main module handles fatal errors and re-throws.</p>
+
+<h4>DB Query Failures in XDateCheck</h4>
+<p>All DB calls in <code>Confirm-ExportIfStale</code> are wrapped in <code>try/catch</code>. On failure, the function logs a warning and returns <code>$true</code> (safe default: export the object rather than silently drop it).</p>
+
+<h4>Per-File Error Isolation</h4>
+<p>The <code>foreach</code> loop in MainPsModule.ps1 wraps each file in its own <code>try/catch</code> that writes the error and continues to the next file. Fatal errors only stop processing of the current file, not the entire batch.</p>
+
+<h4>FK Metadata Failure</h4>
+<p><code>Get-ForeignKeyMetadataPsModule</code> throws on unexpected errors, but individual tables not found in connection metadata emit a <code>Write-Warning</code> and are skipped — the rest of the tables proceed normally.</p>
+</section>
+
+<section id="globalstate">
+<h2>Global State Guide</h2>
+
+<h4>Why Globals Are Needed</h4>
+<p>All modules are loaded with <code>Import-Module -Force</code> inside a function body. PowerShell re-executes the module file on each <code>-Force</code> import, resetting any module-scope (<code>$script:</code>) variables. Using <code>$global:</code> with null-guards is the only reliable way to maintain state across re-imports within a single PS session.</p>
+
+<h4>The Null-Guard Pattern</h4>
+<pre><code><span class="cmt"># At module file scope (outside any function):</span>
+<span class="kw">if</span> (<span class="var">$null</span> -eq <span class="var">$global</span>:XDateCheck_ReportOnDenial)      { <span class="var">$global</span>:XDateCheck_ReportOnDenial      = <span class="num">$true</span>  }
+<span class="kw">if</span> (<span class="var">$null</span> -eq <span class="var">$global</span>:XDateCheck_StaleAbortTriggered) { <span class="var">$global</span>:XDateCheck_StaleAbortTriggered = <span class="num">$false</span> }
+<span class="cmt"># Result: first import sets defaults; subsequent -Force re-imports are no-ops</span></code></pre>
+
+<h4>Lifecycle</h4>
+<table>
+  <tr><th>Point</th><th>Action</th></tr>
+  <tr><td>MainPsModule.ps1 after InputValidator</td><td>Sets <code>ReportOnDenial</code> from config; sets <code>StaleAbortTriggered = $false</code></td></tr>
+  <tr><td>Start of each ZIP file iteration</td><td>Resets <code>StaleAbortTriggered = $false</code></td></tr>
+  <tr><td>User clicks Abort in popup (ReportOnDenial=true)</td><td>Sets <code>StaleAbortTriggered = $true</code></td></tr>
+  <tr><td>All parsers: every <code>Confirm-ExportIfStale</code> call</td><td>Reads <code>StaleAbortTriggered</code>; if true, returns <code>$true</code> immediately</td></tr>
+  <tr><td>All Main modules: after parsing</td><td>Reads <code>StaleAbortTriggered</code>; if true, prints report and returns</td></tr>
+</table>
+</section>
+
+<section id="sql-pattern">
+<h2>SQL Access Pattern</h2>
+<p>The DM API provides an implicit connection. All SQL access follows this pattern:</p>
+
+<pre><code><span class="var">$s</span>      = <span class="fn">Open-QSql</span>                       <span class="cmt"># open implicit connection; return value unused</span>
+<span class="var">$wc</span>     = <span class="str">"SELECT XDateUpdated FROM $tableName WHERE $whereClause"</span>
+<span class="var">$result</span> = <span class="fn">Find-QSql</span> <span class="var">$wc</span> -dict            <span class="cmt"># returns hashtable or $null</span>
+<span class="fn">Close-QSql</span>                                 <span class="cmt"># close implicit connection</span>
+
+<span class="kw">if</span> (<span class="var">$result</span> -and <span class="var">$result</span>.ContainsKey(<span class="str">"XDateUpdated"</span>)) {
+    <span class="var">$dbDateRaw</span> = <span class="var">$result</span>[<span class="str">"XDateUpdated"</span>]
+}</code></pre>
+
+<div class="box box-warn">
+  <div class="box-title">Always call Close-QSql</div>
+  Failing to close the connection may cause issues with subsequent DB calls in the same session. Wrap in <code>try/finally</code> in critical paths.
+</div>
+
+<h4>Other DM API Calls Used</h4>
+<table>
+  <tr><th>Function</th><th>Used in</th><th>Purpose</th></tr>
+  <tr><td><code>Invoke-QDeploy</code></td><td>PsModuleLogin</td><td>Establish connection</td></tr>
+  <tr><td><code>Get-QSession -default</code></td><td>PsModuleLogin</td><td>Get session object</td></tr>
+  <tr><td><code>Open-QSql</code> / <code>Find-QSql</code> / <code>Close-QSql</code></td><td>XDateCheck, DBObjects Case 2</td><td>Raw SQL queries returning dict</td></tr>
+  <tr><td><code>Get-QObject $table "XObjectKey" $key</code></td><td>FilterColumns</td><td>Get full object with column metadata</td></tr>
+  <tr><td><code>$session.Connection.Tables[…].ForeignKeys.ColumnRelations</code></td><td>DBObjects FK enrichment</td><td>FK schema discovery</td></tr>
+</table>
+</section>
+
+<hr/>
+<p style="color:var(--muted); font-size:12px; text-align:center;">
+  OIM Export Tool — Developer Documentation · Generated 2026-02-20 · PowerShell 5.1 · One Identity Manager
+</p>
+
+</main>
+</div>
+
+<script>
+// Active nav highlight on scroll
+const headings = document.querySelectorAll('section[id]');
+const navLinks  = document.querySelectorAll('nav a[href^="#"]');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(a => a.classList.remove('active'));
+      const active = document.querySelector('nav a[href="#'+e.target.id+'"]');
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-10% 0px -80% 0px' });
+headings.forEach(h => obs.observe(h));
+</script>
+</body>
+</html>

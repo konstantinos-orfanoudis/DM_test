@@ -72,17 +72,14 @@ Import-Module (Join-Path $scriptDir "TableScripts_Exporter_PsModule.psm1") -Forc
 #region Main Execution
 try {
   $Logger = Get-Logger
-  $Logger.Info(" OIM Table Scripts Export Tool")
-  Write-Host "OIM Table Scripts Export Tool" -ForegroundColor Cyan
-  Write-Host ""
+  $Logger.Info("OIM Table Scripts Export Tool")
 
   # Step 1: Parse input XML
-  Write-Host "[1/3] Parsing input XML: $ZipPath"
   $Logger.Info("Parsing input XML: $ZipPath")
   $Tablescripts = Get-DialogTableScriptsFromChangeLabel -ZipPath $ZipPath
 
-  Write-Host "Found $($Tablescripts.Count) Tablescript(s)" -ForegroundColor Cyan
-  $Logger.Info("Found $($Tablescripts.Count) Tablescript(s)")
+  Write-Host "  Found $($Tablescripts.Count) TableScript(s)" -ForegroundColor Cyan
+  $Logger.Info("Found $($Tablescripts.Count) TableScript(s)")
 
   # Report mode: if any stale abort was triggered during parsing, print report and exit
   if ($global:XDateCheck_StaleAbortTriggered) {
@@ -94,44 +91,36 @@ try {
 
   if ($Tablescripts.Count -gt 0) {
     # Step 2: Login to API
-    Write-Host "[2/3] Opening session with DMConfigDir: $DMConfigDir"
     $Logger.Info("Opening session with DMConfigDir: $DMConfigDir")
     $session = Connect-OimPSModule -DMConfigDir $DMConfigDir -DMDll $DMDll -OutPath $OutPath -DMPassword $DMPassword
     $Logger = Get-Logger
     $Logger.Info("Authentication successful")
-    Write-Host "Authentication successful"
-    Write-Host ""
-    
+
     # Step 3: Export Scripts
-    Write-Host "[3/3] Exporting to: $OutPath"
-    $Logger.Info("Exporting to: $OutPath")
     $outDirScripts = Join-Path -Path $OutPath -ChildPath "TableScripts"
+    Write-Host "  Exporting to: $outDirScripts" -ForegroundColor Gray
+    $Logger.Info("Exporting to: $outDirScripts")
     Write-TableScriptsAsVbNetFiles -Scripts $Tablescripts -OutDir $outDirScripts
     $Logger.Info("Export completed successfully!")
-    
-    Write-Host ""
-    Write-Host "Export completed successfully!" -ForegroundColor Green
-  } 
+  }
   else {
-    Write-Host "No TableScripts found in ChangeContent in: $ZipPath" -ForegroundColor Yellow
     $Logger = Get-Logger
-    $Logger.Info("No TableScripts found in ChangeContent in: $ZipPath")
+    Write-Host "  No TableScripts found in: $ZipPath" -ForegroundColor Yellow
+    $Logger.Info("No TableScripts found in: $ZipPath")
   }
 }
 catch {
   $Logger = Get-Logger
   $Logger.Info("ERROR: Export failed!")
   $Logger.Info($_.Exception.Message)
-  Write-Host ""
-  Write-Host "ERROR: Export failed!" -ForegroundColor Red
-  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host "  ERROR: Export failed!" -ForegroundColor Red
+  Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
   if ($_.ScriptStackTrace) {
     $Logger = Get-Logger
     $Logger.Info("Stack Trace:")
     $Logger.Info($_.ScriptStackTrace)
-    Write-Host ""
-    Write-Host "Stack Trace:" -ForegroundColor Yellow
-    Write-Host $_.ScriptStackTrace -ForegroundColor Yellow
+    Write-Host "  Stack Trace:" -ForegroundColor Yellow
+    Write-Host "  $($_.ScriptStackTrace)" -ForegroundColor Yellow
   }
   throw
 }
