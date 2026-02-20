@@ -9,5 +9,6 @@
   "DMDll":"C:\\Users\\OneIM\\Desktop\\DeploymentManager-4.0.6-beta\\Intragen.Deployment.OneIdentity.dll",
   "DMPassword": "123",
   "ExcludedColumnsCSV" : "C:\\Users\\OneIM\\Desktop\\Git\\DM_test\\Source Code\\Excluded.csv",
-  "TableNameMapCSV"   : "C:\\Users\\OneIM\\Desktop\\Git\\DM_test\\Source Code\\TemplateMap.csv"
+  "TableNameMapCSV"   : "C:\\Users\\OneIM\\Desktop\\Git\\DM_test\\Source Code\\TemplateMap.csv",
+  "ReportOnDenial"    : true
 }

@@ -124,9 +124,6 @@ function Get-AllDbObjectsFromChangeContent {
     return @()
   }
 
-  # Extract change label creation date once from the already-parsed outer doc
-  $labelDate = Get-ChangeLabelCreationDateFromDoc -Doc $outerDoc
-
   $allObjects = New-Object System.Collections.Generic.List[object]
 
  
@@ -189,15 +186,18 @@ function Get-AllDbObjectsFromChangeContent {
 
         # --- XDateUpdated freshness check (Case 1) ---
         # Build a WHERE clause that covers both single and composite PKs.
-        if ($null -ne $labelDate -and $null -ne $pkName) {
+        if ($null -ne $pkName) {
           $pkArr = @($pkName)
           $pvArr = @($pkValue)
           $whereParts = for ($i = 0; $i -lt $pkArr.Count; $i++) {
             "$($pkArr[$i]) = '$($pvArr[$i])'"
           }
           $whereStr = $whereParts -join " AND "
+          # Extract transport XDateUpdated from the DbObject's own Column element
+          $xDateNode = $dbo.SelectSingleNode('./Columns/Column[@Name="XDateUpdated"]/Value')
+          $transportDate = if ($xDateNode -and -not [string]::IsNullOrWhiteSpace($xDateNode.InnerText)) { $xDateNode.InnerText.Trim() } else { $null }
           $allow = Confirm-ExportIfStale -TableName $tableName -WhereClause $whereStr `
-                     -LabelDate $labelDate -ObjectDescription "$tableName ($whereStr)"
+                     -TransportXDateUpdated $transportDate -ObjectDescription "$tableName ($whereStr)"
           if (-not $allow) { continue }
         }
 
@@ -345,13 +345,16 @@ function Get-AllDbObjectsFromChangeContent {
     Close-QSql
 
     # --- XDateUpdated freshness check (Case 2) ---
-    if ($null -ne $labelDate) {
-      $allow = Confirm-ExportIfStale -TableName $tableName `
-                 -WhereClause "$pkcolumnName = '$pkValue'" `
-                 -LabelDate $labelDate `
-                 -ObjectDescription "$tableName ($pkcolumnName = $pkValue)"
-      if (-not $allow) { continue }
-    }
+    # Extract transport XDateUpdated from the Diff Op
+    $xdOp = $diffRoot.SelectSingleNode('./Op[@Columnname="XDateUpdated"]')
+    if (-not $xdOp) { $xdOp = $diffRoot.SelectSingleNode('./Op[@ColumnName="XDateUpdated"]') }
+    $xdVal = if ($xdOp) { $xdOp.SelectSingleNode('./Value') } else { $null }
+    $transportDate = if ($xdVal -and -not [string]::IsNullOrWhiteSpace($xdVal.InnerText)) { $xdVal.InnerText.Trim() } else { $null }
+    $allow = Confirm-ExportIfStale -TableName $tableName `
+               -WhereClause "$pkcolumnName = '$pkValue'" `
+               -TransportXDateUpdated $transportDate `
+               -ObjectDescription "$tableName ($pkcolumnName = $pkValue)"
+    if (-not $allow) { continue }
 
     # Read SortOrder from the sibling column on the wrapper row
     $sortOrderCol = $changeCol.ParentNode.SelectSingleNode("./Column[@Name='SortOrder']")

@@ -118,6 +118,22 @@ try {
   $Logger = Get-Logger
   $Logger.info("Found $($dbObjects.Count) DbObject(s) across $($uniqueTables.Count) table(s): $($uniqueTables -join ', ')")
 
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($tbl in $uniqueTables) {
+      $tblObjs = @($dbObjects | Where-Object { $_.TableName -eq $tbl })
+      Write-Host "    Table: $tbl ($($tblObjs.Count) object(s))" -ForegroundColor Cyan
+      foreach ($o in $tblObjs) {
+        $pkArr = @($o.PkName); $pvArr = @($o.PkValue)
+        $pkStr = (0..([Math]::Min($pkArr.Count, $pvArr.Count) - 1) | ForEach-Object { "$($pkArr[$_]) = $($pvArr[$_])" }) -join ", "
+        Write-Host "      - $pkStr" -ForegroundColor Gray
+      }
+    }
+    return
+  }
+
   # Step 2: Login to API
   Write-Host "[2/5] Opening session with DMConfigDir: $DMConfigDir"
   $Logger.info("Opening session with DMConfigDir: $DMConfigDir")

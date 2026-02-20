@@ -84,6 +84,16 @@ try {
   Write-Host "Found $($templates.Count) template(s)" -ForegroundColor Cyan
   $Logger.Info("Found $($templates.Count) template(s)")
 
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($t in $templates) {
+      Write-Host "    - $($t.TableName).$($t.ColumnName) (Overwrite: $($t.IsOverwritingTemplate))" -ForegroundColor Gray
+    }
+    return
+  }
+
   if ($templates.Count -gt 0) {
     # Step 2: Login to API
     $Logger.Info("Opening session with DMConfigDir")

@@ -176,6 +176,9 @@ if ($logDir -and -not (Test-Path -LiteralPath $logDir)) {
 
 $TableNameMapCSV = [string](Get-ConfigPropValue $config "TableNameMapCSV")
 
+$ReportOnDenialConfig = Get-ConfigPropValue $config "ReportOnDenial"
+$ReportOnDenial = if ($ReportOnDenialConfig -is [bool]) { [bool]$ReportOnDenialConfig } else { $true }
+
 return [pscustomobject]@{
   DMConfigDir        = $DMConfigDir
   OutPath            = $OutPath
@@ -186,6 +189,7 @@ return [pscustomobject]@{
   PreviewXml         = [bool]$PreviewXml
   CSVMode            = [bool]$CSVMode
   TableNameMapCSV    = $TableNameMapCSV
+  ReportOnDenial     = $ReportOnDenial
 }
 
 }

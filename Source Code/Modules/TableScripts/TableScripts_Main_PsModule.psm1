@@ -79,10 +79,18 @@ try {
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
   $Logger.Info("Parsing input XML: $ZipPath")
-  $Tablescripts = Get-DialogTableScriptsFromChangeLabel -ZipPath $ZipPath 
+  $Tablescripts = Get-DialogTableScriptsFromChangeLabel -ZipPath $ZipPath
 
   Write-Host "Found $($Tablescripts.Count) Tablescript(s)" -ForegroundColor Cyan
   $Logger.Info("Found $($Tablescripts.Count) Tablescript(s)")
+
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($ts in $Tablescripts) { Write-Host "    - UID_DialogTable = $($ts.UID_DialogTable)" -ForegroundColor Gray }
+    return
+  }
 
   if ($Tablescripts.Count -gt 0) {
     # Step 2: Login to API

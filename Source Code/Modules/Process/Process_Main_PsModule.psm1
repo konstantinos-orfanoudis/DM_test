@@ -92,6 +92,16 @@ try {
   Write-Host "Found $($processes.Count) process(es)" -ForegroundColor Cyan
   Write-Host ""
 
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($p in $processes) {
+      Write-Host "    - $($p.Name) ($($p.TableName))" -ForegroundColor Gray
+    }
+    return
+  }
+
   # Step 3: Export Process
   if ($processes.Count -gt 0) {
     

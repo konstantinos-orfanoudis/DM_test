@@ -16,9 +16,6 @@ function Get-CanSeeScriptsFromChangeLabel {
     throw "File not found: $ZipPath"
   }
 
-  # Extract change label creation date
-  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
-
   $text = Get-Content -LiteralPath $ZipPath -Raw
 
   # Decode entities a few times (safe even if already decoded)
@@ -40,13 +37,12 @@ function Get-CanSeeScriptsFromChangeLabel {
       $k = $m.Groups['p'].Value.Trim()
       if ($k -and $seen.Add($k)) {
         # --- XDateUpdated freshness check ---
-        if ($null -ne $labelDate) {
-          $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
-                     -WhereClause "UID_DialogColumn = '$k'" `
-                     -LabelDate $labelDate `
-                     -ObjectDescription "DialogColumn (CanSeeScript, UID = $k)"
-          if (-not $allow) { continue }
-        }
+        $transportDate = Get-XDateUpdatedFromBlock -Block $dbText
+        $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
+                   -WhereClause "UID_DialogColumn = '$k'" `
+                   -TransportXDateUpdated $transportDate `
+                   -ObjectDescription "DialogColumn (CanSeeScript, UID = $k)"
+        if (-not $allow) { continue }
         [void]$keys.Add($k)
       }
     }

@@ -80,6 +80,14 @@ try {
   Write-Host "Found $($scripts.Count) Format script(s)" -ForegroundColor Cyan
   $Logger.info("Found $($scripts.Count) Format script(s)")
 
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($k in $scripts) { Write-Host "    - $k" -ForegroundColor Gray }
+    return
+  }
+
   if ($scripts.Count -gt 0) {
 
     # Step 2: Login (kept for parity / future use)

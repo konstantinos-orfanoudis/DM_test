@@ -79,10 +79,18 @@ try {
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
   $Logger.Info("Parsing input XML: $ZipPath")
-  $scripts = Get-ScriptKeysFromChangeLabel -ZipPath $ZipPath 
+  $scripts = Get-ScriptKeysFromChangeLabel -ZipPath $ZipPath
 
   Write-Host "Found $($scripts.Count) script(s)" -ForegroundColor Cyan
   $Logger.Info("Found $($scripts.Count) script(s)")
+
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.Info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($k in $scripts) { Write-Host "    - $k" -ForegroundColor Gray }
+    return
+  }
 
   if ($scripts.Count -gt 0) {
     # Step 2: Login to API

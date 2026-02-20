@@ -79,10 +79,18 @@ try {
   # Step 1: Parse input XML
   Write-Host "[1/3] Parsing input XML: $ZipPath"
   $Logger.info("Parsing input XML: $ZipPath")
-  $canseescripts = Get-CanSeeScriptsFromChangeLabel -ZipPath $ZipPath 
+  $canseescripts = Get-CanSeeScriptsFromChangeLabel -ZipPath $ZipPath
 
   Write-Host "Found $($canseescripts.Count) CanSeeScripts(s)" -ForegroundColor Cyan
   $Logger.info("Found $($canseescripts.Count) CanSeeScripts(s)")
+
+  # Report mode: if any stale abort was triggered during parsing, print report and exit
+  if ($global:XDateCheck_StaleAbortTriggered) {
+    Write-Host "  [REPORT MODE] Stale object abort triggered - no files will be written." -ForegroundColor Yellow
+    $Logger.info("[REPORT MODE] Stale object abort triggered - no files will be written.")
+    foreach ($k in $canseescripts) { Write-Host "    - $k" -ForegroundColor Gray }
+    return
+  }
 
   if ($canseescripts.Count -gt 0) {
     # Step 2: Login to API

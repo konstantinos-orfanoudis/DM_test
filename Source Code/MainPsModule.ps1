@@ -125,7 +125,11 @@ try {
   }
   
   $config = InputValidator @validatorParams
-  
+
+  # Initialise XDateCheck globals from config (null-guards inside XDateCheck protect against -Force reloads)
+  $global:XDateCheck_ReportOnDenial      = if ($null -ne $config.ReportOnDenial) { [bool]$config.ReportOnDenial } else { $true }
+  $global:XDateCheck_StaleAbortTriggered = $false
+
   # Handle password prompt if -DMPassword switch is used
   $passwordToUse = $config.DMPassword
   if ($DMPassword) {
@@ -177,6 +181,7 @@ try {
   
   foreach ($xmlFile in $xmlFiles) {
     $fileCount++
+    $global:XDateCheck_StaleAbortTriggered = $false  # Reset abort flag for each file
     $xmlPath = $xmlFile.XmlFilePath
     $relativePath = $xmlPath.Replace($xmlFile.TempDir, "").TrimStart('\', '/')
     
@@ -224,19 +229,16 @@ try {
       }
 
       # Process DBObjects
-      
       Write-Host "  - Extracting DBObjects..." -ForegroundColor Gray
       DBObjects_Main_PsModule @commonParams
       
       
       # Process Processes
-      
       Write-Host "  - Extracting Processes..." -ForegroundColor Gray
       Process_Main_PsModule @commonParams
       
       
       # Process Templates
-     
       Write-Host "  - Extracting Templates..." -ForegroundColor Gray
       Templates_Main_PsModule @commonParams
       

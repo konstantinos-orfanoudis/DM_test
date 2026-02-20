@@ -41,9 +41,6 @@ function GetAllProcessFromChangeLabel {
      ]"
   )
 
-  # Extract change label creation date once from the already-parsed doc
-  $labelDate = Get-ChangeLabelCreationDateFromDoc -Doc $doc
-
   $results = New-Object 'System.Collections.Generic.List[object]'
   if (-not $taggedChangeDbos) { return $results }
 
@@ -91,7 +88,7 @@ function GetAllProcessFromChangeLabel {
           if ($objType -match '(?i)JobChain' -and -not [string]::IsNullOrWhiteSpace($objUid)) {
 
             $s = Open-QSql
-            $wc = "select Name, UID_DialogTable, XDateUpdated from JobChain where UID_JobChain = '$objUid'"
+            $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$objUid'"
             $pr = Find-QSql $wc -dict
             Close-QSql
 
@@ -100,16 +97,29 @@ function GetAllProcessFromChangeLabel {
               $processName = $pr["Name"]
 
               # --- XDateUpdated freshness check (Path 1) ---
-              if ($null -ne $labelDate) {
-                $dbDateRaw = $pr["XDateUpdated"]
-                if (-not [string]::IsNullOrWhiteSpace($dbDateRaw)) {
-                  $allow = Confirm-ExportIfStale -TableName 'JobChain' `
-                             -WhereClause "UID_JobChain = '$objUid'" `
-                             -LabelDate $labelDate `
-                             -ObjectDescription "JobChain '$processName' (UID_JobChain = $objUid)"
-                  if (-not $allow) { continue }
+              # Extract transport XDateUpdated from ChangeContent of this QBMTaggedChange row
+              $transportDate = $null
+              $ccNodeForDate = $dbo.SelectSingleNode(".//*[local-name()='Column' and @Name='ChangeContent']")
+              if ($ccNodeForDate) {
+                $rawForDate = $null
+                $dispAttr = $ccNodeForDate.Attributes["Display"]
+                if ($dispAttr -and -not [string]::IsNullOrWhiteSpace($dispAttr.Value)) {
+                  $rawForDate = $dispAttr.Value
+                } else {
+                  $vNode = $ccNodeForDate.SelectSingleNode("./*[local-name()='Value']")
+                  if ($vNode -and -not [string]::IsNullOrWhiteSpace($vNode.InnerText)) { $rawForDate = $vNode.InnerText }
+                }
+                if (-not [string]::IsNullOrWhiteSpace($rawForDate)) {
+                  $decodedForDate = $rawForDate
+                  for ($di = 0; $di -lt 3; $di++) { $decodedForDate = [System.Net.WebUtility]::HtmlDecode($decodedForDate) }
+                  $transportDate = Get-XDateUpdatedFromBlock -Block $decodedForDate
                 }
               }
+              $allow = Confirm-ExportIfStale -TableName 'JobChain' `
+                         -WhereClause "UID_JobChain = '$objUid'" `
+                         -TransportXDateUpdated $transportDate `
+                         -ObjectDescription "JobChain '$processName' (UID_JobChain = $objUid)"
+              if (-not $allow) { continue }
 
               $s = Open-QSql
               $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"
@@ -157,7 +167,7 @@ function GetAllProcessFromChangeLabel {
             $uid = $m.Groups["uid"].Value.Trim()
 
             $s = Open-QSql
-            $wc = "select Name, UID_DialogTable, XDateUpdated from JobChain where UID_JobChain = '$uid'"
+            $wc = "select Name, UID_DialogTable from JobChain where UID_JobChain = '$uid'"
             $pr = Find-QSql $wc -dict
             Close-QSql
 
@@ -166,16 +176,13 @@ function GetAllProcessFromChangeLabel {
               $processName = $pr["Name"]
 
               # --- XDateUpdated freshness check (Path 2 fallback) ---
-              if ($null -ne $labelDate) {
-                $dbDateRaw = $pr["XDateUpdated"]
-                if (-not [string]::IsNullOrWhiteSpace($dbDateRaw)) {
-                  $allow = Confirm-ExportIfStale -TableName 'JobChain' `
-                             -WhereClause "UID_JobChain = '$uid'" `
-                             -LabelDate $labelDate `
-                             -ObjectDescription "JobChain '$processName' (UID_JobChain = $uid)"
-                  if (-not $allow) { continue }
-                }
-              }
+              # $decoded is already available (ChangeContent decoded above)
+              $transportDate = Get-XDateUpdatedFromBlock -Block $decoded
+              $allow = Confirm-ExportIfStale -TableName 'JobChain' `
+                         -WhereClause "UID_JobChain = '$uid'" `
+                         -TransportXDateUpdated $transportDate `
+                         -ObjectDescription "JobChain '$processName' (UID_JobChain = $uid)"
+              if (-not $allow) { continue }
 
               $s = Open-QSql
               $wc = "select TableName from DialogTable where UID_DialogTable = '$uid_table'"

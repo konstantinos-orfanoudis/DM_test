@@ -14,9 +14,6 @@ function Get-TemplatesFromChangeContent {
     throw "File not found: $ZipPath" 
   }
 
-  # Extract change label creation date (loads XML separately from the regex text below)
-  $labelDate = Get-ChangeLabelCreationDate -ZipPath $ZipPath
-
   # Read whole file + decode a few times (handles &lt; and &amp;lt;)
   $text = Get-Content -LiteralPath $ZipPath -Raw
   $text = [System.Net.WebUtility]::HtmlDecode($text) # If more than 1 time encoded, use the For-Block "for ($i = 0; $i -lt 3; $i++) { $text = [System.Net.WebUtility]::HtmlDecode($text) }"
@@ -99,10 +96,11 @@ function Get-TemplatesFromChangeContent {
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
 
     # --- XDateUpdated freshness check (pass 2) ---
-    if ($null -ne $labelDate -and -not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+    if (-not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+      $transportDate = Get-XDateUpdatedFromBlock -Block $dboText
       $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
                  -WhereClause "UID_DialogColumn = '$uidDialogColumn'" `
-                 -LabelDate $labelDate `
+                 -TransportXDateUpdated $transportDate `
                  -ObjectDescription "DialogColumn '$tableName.$columnName' (UID = $uidDialogColumn)"
       if (-not $allow) { continue }
     }
@@ -158,10 +156,11 @@ function Get-TemplatesFromChangeContent {
     if ([string]::IsNullOrWhiteSpace($columnName)) { $columnName = "UnknownColumn" }
 
     # --- XDateUpdated freshness check (pass 3) ---
-    if ($null -ne $labelDate -and -not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+    if (-not [string]::IsNullOrWhiteSpace($uidDialogColumn)) {
+      $transportDate = Get-XDateUpdatedFromBlock -Block $dboText
       $allow = Confirm-ExportIfStale -TableName 'DialogColumn' `
                  -WhereClause "UID_DialogColumn = '$uidDialogColumn'" `
-                 -LabelDate $labelDate `
+                 -TransportXDateUpdated $transportDate `
                  -ObjectDescription "DialogColumn '$tableName.$columnName' (UID = $uidDialogColumn)"
       if (-not $allow) { continue }
     }
